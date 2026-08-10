@@ -27,6 +27,9 @@ export type ImportedLead = {
   paymentMethod?: string;
   installments?: string;
   dueDate?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  eventLocation?: string;
   source: "Gerador";
   stage: "Novo lead" | "Qualificado" | "Proposta enviada" | "Negociação" | "Aceita";
 };
@@ -56,6 +59,9 @@ export function normalizeGeneratorRequest(request: GeneratorRequest): ImportedLe
     paymentMethod: business.formaPagamento,
     installments: business.parcelas,
     dueDate: business.dataVencimento,
+    clientEmail: client.email?.trim(),
+    clientPhone: client.whatsapp?.trim(),
+    eventLocation: event.local?.trim() || event.localFesta?.trim(),
     source: "Gerador",
     stage: stageFromStatus(request.status),
   };

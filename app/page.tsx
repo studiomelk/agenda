@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight, CalendarDays, Check, ChevronRight, CircleDollarSign,
   ClipboardList, FileText, LayoutDashboard, MessageCircle, Plus,
   Search, ShieldCheck, Sparkles, UsersRound, MapPin, UserRoundCheck,
-  ReceiptText, WalletCards, ExternalLink, CheckCircle2, Clock3
+  ReceiptText, WalletCards, ExternalLink, CheckCircle2, Clock3, Pencil, Paperclip, Share2, Mail, Phone, UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { leadStages, type LeadStage } from "../lib/lead-intake";
@@ -15,17 +15,24 @@ type Lead = {
   id: string;
   name: string;
   initials: string;
-  source: "Proposta" | "WhatsApp" | "Formulário";
+  source: "Proposta" | "WhatsApp" | "Formulário" | "Gerador";
   stage: LeadStage;
   event: string;
   date: string;
   value: string;
   next: string;
   tone: string;
+  email?: string;
+  phone?: string;
+  service?: string;
+  venue?: string;
+  paymentMethod?: string;
+  installments?: string;
+  contractUrl?: string;
 };
 
 const initialLeads: Lead[] = [
-  { id: "L-024", name: "Nathalia & Victor", initials: "NV", source: "Proposta", stage: "Proposta enviada", event: "Casamento · Campinas", date: "18 out 2026", value: "R$ 8.400", next: "Retornar amanhã", tone: "rose" },
+  { id: "L-024", name: "Nathalia & Victor", initials: "NV", source: "Proposta", stage: "Proposta enviada", event: "Casamento · Campinas", date: "18 out 2026", value: "R$ 8.400", next: "Retornar amanhã", tone: "rose", email: "cliente@exemplo.com", phone: "(19) 99999-0000", service: "Foto e vídeo · dia completo", venue: "Campinas, SP", paymentMethod: "Pix e cartão", installments: "30% de sinal + 2 parcelas" },
   { id: "L-023", name: "Marina Alves", initials: "MA", source: "WhatsApp", stage: "Negociação", event: "Ensaio de família · Jundiaí", date: "06 set 2026", value: "R$ 2.200", next: "Ajustar pacote", tone: "violet" },
   { id: "L-022", name: "Beatriz & Lucas", initials: "BL", source: "Formulário", stage: "Qualificado", event: "Casamento · São Paulo", date: "22 nov 2026", value: "R$ 10.800", next: "Enviar proposta", tone: "gold" },
   { id: "L-021", name: "Casa Prana", initials: "CP", source: "WhatsApp", stage: "Contato feito", event: "Evento corporativo · Campinas", date: "14 ago 2026", value: "R$ 4.600", next: "Confirmar briefing", tone: "teal" },
@@ -43,11 +50,33 @@ export default function Page() {
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState("Visão geral");
   const [selectedId, setSelectedId] = useState(initialLeads[0].id);
+  const [accessKey, setAccessKey] = useState("");
   const [notice, setNotice] = useState("A integração do Gerador será recebida aqui, sem gravar no banco atual.");
   const selected = leads.find((lead) => lead.id === selectedId) ?? leads[0];
   const filtered = useMemo(() => leads.filter((lead) =>
     `${lead.name} ${lead.event} ${lead.source}`.toLowerCase().includes(query.toLowerCase())), [leads, query]);
   const activeStages: LeadStage[] = ["Novo lead", "Qualificado", "Proposta enviada", "Negociação", "Aceita"];
+
+  useEffect(() => {
+    if (!accessKey) return;
+    fetch("/api/staging/solicitacoes", { headers: { "x-manager-access": accessKey }, cache: "no-store" })
+      .then(async (response) => ({ ok: response.ok, data: await response.json() }))
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.error || "Não foi possível abrir os dados privados.");
+        const imported = (data.records as Array<{ externalId: string; displayName: string; eventTitle: string; eventDate?: string; eventTime?: string; total?: string; stage: LeadStage; clientEmail?: string; clientPhone?: string; service?: string; venue?: string; paymentMethod?: string; installments?: string }>).map((record, index) => ({
+          id: record.externalId, name: record.displayName,
+          initials: record.displayName.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "CL",
+          source: "Gerador" as const, stage: record.stage, event: record.eventTitle,
+          date: record.eventDate ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(`${record.eventDate}T12:00:00`)) : "Data a confirmar",
+          value: record.total ? `R$ ${Number(record.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor a confirmar",
+          next: "Revisar ficha do cliente", tone: ["rose", "teal", "violet", "gold", "blue"][index % 5], email: record.clientEmail, phone: record.clientPhone,
+          service: record.service, venue: record.venue, paymentMethod: record.paymentMethod, installments: record.installments,
+        }));
+        if (imported.length) { setLeads(imported); setSelectedId(imported[0].id); }
+        setNotice(`${imported.length} registros privados carregados do staging.`);
+      })
+      .catch((error: Error) => setNotice(error.message));
+  }, [accessKey]);
 
   function advanceLead() {
     const position = leadStages.indexOf(selected.stage);
@@ -118,7 +147,7 @@ export default function Page() {
             {filtered.map((lead) => <tr key={lead.id} onClick={() => setSelectedId(lead.id)} className={selected.id === lead.id ? "row-selected" : ""}><td><span className={`avatar table-avatar ${lead.tone}`}>{lead.initials}</span><strong>{lead.name}</strong></td><td>{lead.source}</td><td><span className="stage-pill">{lead.stage}</span></td><td>{lead.date}</td><td>{lead.next}<ChevronRight size={15} /></td></tr>)}
           </tbody></table></div>
         </section>
-        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} />}
+        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} onUnlock={setAccessKey} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} />}
       </section>
     </main>
   );
@@ -126,29 +155,32 @@ export default function Page() {
 
 type OperationsWorkspaceProps = { view: string; setNotice: (message: string) => void };
 
-function ImportWorkspace({ setNotice }: { setNotice: (message: string) => void }) {
+function ImportWorkspace({ setNotice, onUnlock }: { setNotice: (message: string) => void; onUnlock: (password: string) => void }) {
+  const [password, setPassword] = useState("");
   return <section className="import-layout">
     <div className="section-heading"><div><h2>Importação protegida</h2><p>Seus dados reais ficam no Firebase; esta tela só mostra o que está pronto para migrar.</p></div><span className="stage-pill">Cópia de teste</span></div>
     <div className="import-summary"><article><span>Origem conectada</span><strong>{importReadiness.source}</strong><small>Leitura conferida em 9 de agosto</small></article><article><span>Registros encontrados</span><strong>{importReadiness.recordsFound} solicitações</strong><small>Sem alteração no aplicativo atual</small></article><article><span>Destino</span><strong>Manager Next · staging</strong><small>Banco separado antes da publicação</small></article></div>
     <div className="import-checklist"><h3>Campos prontos para o fluxo</h3><p>O conversor já reconhece a estrutura usada pelo Gerador.</p><div>{importReadiness.fieldsReady.map((field) => <span key={field}><CheckCircle2 size={16} /> {field}</span>)}</div></div>
-    <div className="import-next"><ShieldCheck size={22} /><div><h3>Próximo passo seguro</h3><p>Criar o banco privado de staging e importar as solicitações sem expor nomes, contatos ou contratos no site público.</p></div><button className="primary-button" onClick={() => setNotice("Banco de staging será conectado antes de importar os dados reais.")}>Preparar staging <ChevronRight size={17} /></button></div>
+    <div className="import-next"><ShieldCheck size={22} /><div><h3>Abrir dados privados</h3><p>Use a senha do Manager Next. Ela não fica gravada no navegador e só libera a leitura nesta sessão.</p></div><form className="unlock-form" onSubmit={(event) => { event.preventDefault(); if (!password) return setNotice("Digite a senha de acesso para continuar."); onUnlock(password); setPassword(""); }}><input aria-label="Senha de acesso" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" /><button className="primary-button" type="submit">Acessar dados <ChevronRight size={17} /></button></form></div>
   </section>;
 }
 
-const events = [
-  { id: "E-102", title: "Casamento · evento confirmado", date: "Sáb, 22 ago", time: "16:15", place: "Local confirmado", team: ["Foto", "Vídeo"], status: "Confirmado" },
-  { id: "E-103", title: "Casamento · aguardando equipe", date: "Sáb, 12 set", time: "15:30", place: "Local confirmado", team: ["Foto", "Vídeo", "Edição"], status: "Atenção" },
-  { id: "E-104", title: "Ensaio · proposta aceita", date: "Sex, 03 out", time: "09:00", place: "Local a combinar", team: ["Foto"], status: "Pendente" },
+type EventRecord = { id: string; title: string; date: string; time: string; place: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: { role: string; person: string }[]; contract: "Link do CRM" | "PDF anexado" | "Pendente"; paid: string; remaining: string };
+const events: EventRecord[] = [
+  { id: "E-102", title: "Casamento · evento confirmado", date: "Sáb, 22 ago", time: "16:15", place: "Campinas, SP", status: "Confirmado", client: "Casal do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Foto e vídeo · dia completo", value: "R$ 8.400", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"}], contract:"Link do CRM", paid:"R$ 2.520", remaining:"R$ 5.880" },
+  { id: "E-103", title: "Casamento · aguardando equipe", date: "Sáb, 12 set", time: "15:30", place: "Local confirmado", status: "Atenção", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(11) 99999-0000", project: "Cobertura de cerimônia e recepção", value: "R$ 10.800", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"},{role:"Edição",person:"A definir"}], contract:"PDF anexado", paid:"R$ 3.240", remaining:"R$ 7.560" },
+  { id: "E-104", title: "Ensaio · proposta aceita", date: "Sex, 03 out", time: "09:00", place: "Local a combinar", status: "Pendente", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Ensaio fotográfico", value: "R$ 1.850", team: [{role:"Fotografia",person:"A definir"}], contract:"Pendente", paid:"—", remaining:"R$ 1.850" },
 ];
 
 function OperationsWorkspace({ view, setNotice }: OperationsWorkspaceProps) {
   const [openEventId, setOpenEventId] = useState(events[0].id);
   const [featuredEvents, setFeaturedEvents] = useState<string[]>([events[0].id]);
+  const [editing, setEditing] = useState(false);
   const openEvent = events.find((event) => event.id === openEventId) ?? events[0];
   if (view === "Agenda") return <section className="operations-grid">
     <div className="operations-main"><div className="section-heading"><div><h2>Agenda de produção</h2><p>Um evento, uma equipe e um lugar para tudo.</p></div><button className="primary-button" onClick={() => setNotice("Novo evento será criado no ambiente de desenvolvimento.")}><Plus size={17} /> Novo evento</button></div>
-      <div className="agenda-list">{events.map((event) => <article className={`event-card ${featuredEvents.includes(event.id) ? "is-featured" : ""}`} key={event.id} onClick={() => setOpenEventId(event.id)}><div className="event-date"><strong>{event.date.split(", ")[1]}</strong><span>{event.date.split(", ")[0]}</span></div><div className="event-copy"><span className={`status-dot ${event.status.toLowerCase()}`}>{event.status}</span><h3>{event.title}</h3><p><Clock3 size={15} /> {event.time} <span /> <MapPin size={15} /> {event.place}</p><div className="assignment-row">{event.team.map((role) => <span key={role}><UserRoundCheck size={14} /> {role}</span>)}</div></div><div className="event-actions"><button className="outline-button" onClick={(e) => { e.stopPropagation(); setFeaturedEvents((items) => items.includes(event.id) ? items.filter((id) => id !== event.id) : [...items, event.id]); }}>{featuredEvents.includes(event.id) ? "Em destaque" : "Destacar"}</button><button className="outline-button" onClick={(e) => { e.stopPropagation(); setNotice("Resumo do evento pronto para compartilhar com a equipe."); }}><MessageCircle size={16} /> Compartilhar</button><button className="text-button" onClick={(e) => { e.stopPropagation(); setOpenEventId(event.id); }}>Ver ficha <ChevronRight size={16} /></button></div></article>)}</div>
-    </div><aside className="task-panel event-sheet"><div className="sheet-heading"><div><span>Ficha do evento</span><h2>{openEvent.title}</h2></div><button className="sheet-close" onClick={() => setNotice("Ficha fechada. Clique em qualquer cartão para abrir novamente.")} aria-label="Fechar ficha">×</button></div><div className="sheet-section"><strong>Cliente</strong><p>Dados de contato e preferências do atendimento.</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Área do cliente aberta: pagamentos, contrato e histórico.")}>Ver área do cliente</button><button className="sheet-button" onClick={() => setNotice("Agendamento de ensaio preparado para este cliente.")}>Agendar ensaio</button></div></div><div className="sheet-section"><strong>Quando e onde</strong><p><CalendarDays size={16} /> {openEvent.date}, {openEvent.time}</p><p><MapPin size={16} /> {openEvent.place}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(openEvent.place)}`} target="_blank" rel="noreferrer">Abrir no Google Maps <ExternalLink size={14} /></a></div><div className="sheet-section"><strong>Equipe e atribuições</strong>{openEvent.team.map((role) => <p key={role}><UserRoundCheck size={16} /> {role} definido</p>)}<button className="sheet-button" onClick={() => setNotice("Agenda individual da equipe aberta para ajuste.")}>Editar equipe</button></div><div className="sheet-section"><strong>Pagamento e contrato</strong><p><CheckCircle2 size={16} /> Sinal registrado</p><p><Clock3 size={16} /> Próxima parcela a acompanhar</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Contrato aberto para consulta.")}>Abrir contrato</button><button className="sheet-button" onClick={() => setNotice("Resumo de pagamentos aberto.")}>Ver o que pagou</button></div></div><button className="share-sheet" onClick={() => setNotice("Dados do evento preparados para compartilhar com a equipe.")}><MessageCircle size={18} /> Compartilhar dados com equipe</button></aside>
+      <div className="agenda-list">{events.map((event) => <article className={`event-card ${featuredEvents.includes(event.id) ? "is-featured" : ""}`} key={event.id} onClick={() => { setOpenEventId(event.id); setEditing(false); }}><div className="event-date"><strong>{event.date.split(", ")[1]}</strong><span>{event.date.split(", ")[0]}</span></div><div className="event-copy"><span className={`status-dot ${event.status.toLowerCase()}`}>{event.status}</span><h3>{event.title}</h3><p><Clock3 size={15} /> {event.time} <span /> <MapPin size={15} /> {event.place}</p><div className="assignment-row">{event.team.map(({role,person}) => <span key={role}><UserRoundCheck size={14} /> {role}: {person}</span>)}</div></div><div className="event-actions"><button className="outline-button" onClick={(e) => { e.stopPropagation(); setFeaturedEvents((items) => items.includes(event.id) ? items.filter((id) => id !== event.id) : [...items, event.id]); }}>{featuredEvents.includes(event.id) ? "Em destaque" : "Destacar"}</button><button className="outline-button" onClick={(e) => { e.stopPropagation(); setNotice("Resumo preparado para compartilhar com a equipe."); }}><Share2 size={16} /> Compartilhar</button><button className="text-button" onClick={(e) => { e.stopPropagation(); setOpenEventId(event.id); }}>Ver ficha <ChevronRight size={16} /></button></div></article>)}</div>
+    </div><aside className="task-panel event-sheet"><div className="sheet-heading"><div><span>Ficha completa do projeto</span><h2>{openEvent.title}</h2></div><button className="sheet-close" onClick={() => setEditing(!editing)} aria-label="Editar ficha"><Pencil size={15} /></button></div>{editing && <div className="edit-note"><Pencil size={15} /> Modo edição preparado. Ao conectar o banco, estas alterações serão salvas no cadastro do projeto.</div>}<div className="sheet-section"><strong>Cliente e casal</strong><p><UserRound size={16} /> {openEvent.client}</p><p><Mail size={16} /> {openEvent.email}</p><p><Phone size={16} /> {openEvent.phone}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Área do cliente: pagamentos, contrato e histórico.")}>Área do cliente</button><button className="sheet-button" onClick={() => setNotice("Novo agendamento de ensaio criado para revisão.")}>Agendar ensaio</button></div></div><div className="sheet-section"><strong>Projeto contratado</strong><p><ClipboardList size={16} /> {openEvent.project}</p><p><CircleDollarSign size={16} /> {openEvent.value}</p><p><CalendarDays size={16} /> {openEvent.date}, {openEvent.time}</p><p><MapPin size={16} /> {openEvent.place}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(openEvent.place)}`} target="_blank" rel="noreferrer">Abrir no Google Maps <ExternalLink size={14} /></a></div><div className="sheet-section"><strong>Equipe e atribuições</strong>{openEvent.team.map(({role,person}) => <p key={role}><UserRoundCheck size={16} /> <b>{role}:</b> {person}</p>)}<button className="sheet-button" onClick={() => setNotice("Atribuições da equipe abertas para ajuste.")}>Editar equipe</button></div><div className="sheet-section"><strong>Contrato e pagamentos</strong><p><FileText size={16} /> Contrato: {openEvent.contract}</p><p><CheckCircle2 size={16} /> Já pago: {openEvent.paid}</p><p><Clock3 size={16} /> Falta receber: {openEvent.remaining}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Contrato aberto. Link do CRM ou PDF ficará disponível nesta ficha.")}>Abrir contrato</button><button className="sheet-button" onClick={() => setNotice("Anexo preparado: o PDF será guardado no banco unificado, não no navegador.")}><Paperclip size={14} /> Anexar PDF</button></div></div><button className="share-sheet" onClick={() => setNotice("Dados do projeto preparados para compartilhar com a equipe.")}><Share2 size={18} /> Compartilhar dados com equipe</button></aside>
   </section>;
 
   if (view === "Equipe") return <section className="team-layout"><div className="section-heading"><div><h2>Equipe e disponibilidade</h2><p>Veja quem está livre antes de confirmar um evento.</p></div><button className="primary-button" onClick={() => setNotice("Novo membro será incluído na equipe de teste.")}><Plus size={17} /> Adicionar pessoa</button></div><div className="team-grid">{[{name:"Profissional de foto",role:"Fotografia",load:"Livre no próximo evento",tone:"rose"},{name:"Profissional de vídeo",role:"Videomaker",load:"1 evento confirmado",tone:"teal"},{name:"Edição",role:"Pós-produção",load:"2 entregas esta semana",tone:"violet"},{name:"Assistente",role:"Apoio de produção",load:"Livre no próximo evento",tone:"gold"}].map((member) => <article className="member-card" key={member.role}><span className={`avatar large ${member.tone}`}>{member.role.slice(0,1)}</span><div><h3>{member.name}</h3><p>{member.role}</p></div><strong>{member.load}</strong><button className="outline-button" onClick={() => setNotice(`Agenda de ${member.role} aberta.`)}><CalendarDays size={15} /> Ver agenda</button></article>)}</div><div className="availability-note"><UserRoundCheck size={18} /><span><strong>Regra simples:</strong> se a pessoa já estiver em outro evento no mesmo horário, o sistema avisa antes de confirmar.</span></div></section>;
