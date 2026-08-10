@@ -195,7 +195,7 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
   </section>;
 }
 
-type EventRecord = { id: string; clientId?: string; title: string; date: string; rawDate?: string; time: string; place: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: { role: string; person: string; assignment?: string }[]; teamNotes?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
+type EventRecord = { id: string; clientId?: string; title: string; date: string; rawDate?: string; time: string; place: string; mapUrl?: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: { role: string; person: string; assignment?: string }[]; teamNotes?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
 const events: EventRecord[] = [
   { id: "E-102", title: "Casamento · evento confirmado", date: "Sáb, 22 ago", time: "16:15", place: "Campinas, SP", status: "Confirmado", client: "Casal do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Foto e vídeo · dia completo", value: "R$ 8.400", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"}], contract:"Link do CRM", paid:"R$ 2.520", remaining:"R$ 5.880" },
   { id: "E-103", title: "Casamento · aguardando equipe", date: "Sáb, 12 set", time: "15:30", place: "Local confirmado", status: "Atenção", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(11) 99999-0000", project: "Cobertura de cerimônia e recepção", value: "R$ 10.800", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"},{role:"Edição",person:"A definir"}], contract:"PDF anexado", paid:"R$ 3.240", remaining:"R$ 7.560" },
@@ -240,7 +240,7 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
       id: String(event.id), clientId: client ? String(client.id) : undefined, title: String(event.title || "Evento sem título"),
       date: event.date ? new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(new Date(`${event.date}T12:00:00`)) : "Data a confirmar", rawDate: String(event.date || ""),
       time: String(event.time || "Horário a confirmar"),
-      place: String(event.locCerimonia || event.locFesta || "Local a confirmar"),
+      place: String(event.locCerimonia || event.locFesta || "Local a confirmar"), mapUrl: String(event.mapUrl || ""),
       status: String(event.status || "Pendente"), client: String(client?.nome || event.title || "Cliente não informado"),
       email: String(client?.email || "E-mail não informado"), phone: String(client?.whatsapp || "Telefone não informado"),
       project: String(order?.servicos || event.services || "Projeto não informado"),
@@ -260,6 +260,8 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const [eventEdits, setEventEdits] = useState<Record<string, Partial<EventRecord>>>({});
   const [teamEdits, setTeamEdits] = useState<Record<string, { name: string; role: string }>>({});
   const [newTeamMember, setNewTeamMember] = useState({ name: "", role: "" });
+  const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
+  const [selectedClientId, setSelectedClientId] = useState("");
   const [contractQuery, setContractQuery] = useState("");
   const records = baseRecords.map((event) => ({ ...event, ...eventEdits[event.id] }));
   const openEvent = records.find((event) => event.id === openEventId) ?? records[0];
@@ -268,7 +270,8 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
     setEventEdits((all) => ({ ...all, [openEvent.id]: { ...all[openEvent.id], [field]: value } }));
   };
   const shareEvent = async (event: EventRecord) => {
-    const text = `${event.title}\n${event.date} · ${event.time}\n${event.place}\nEquipe e atribuições:\n${event.team.map((member) => `• ${member.person} — ${member.role}${member.assignment ? ` — ${member.assignment}` : ""}`).join("\n")}${event.teamNotes ? `\n\nInstruções adicionais:\n${event.teamNotes}` : ""}`;
+    const mapsUrl = event.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.place)}`;
+    const text = `${event.title}\n${event.date} · ${event.time}\nLocal: ${event.place}\nMapa: ${mapsUrl}\nEquipe e atribuições:\n${event.team.map((member) => `• ${member.person} — ${member.role}${member.assignment ? ` — ${member.assignment}` : ""}`).join("\n")}${event.teamNotes ? `\n\nInstruções adicionais:\n${event.teamNotes}` : ""}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: event.title, text });
@@ -284,7 +287,7 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const saveOpenEvent = async () => {
     await originalData.patchDocument("events", openEvent.id, {
       title: openEvent.title, date: openEvent.rawDate || "", time: openEvent.time,
-      locCerimonia: openEvent.place, services: openEvent.project,
+      locCerimonia: openEvent.place, mapUrl: openEvent.mapUrl || "", services: openEvent.project,
       team: openEvent.team.map((member) => ({ name: member.person, role: member.role, assignment: member.assignment || "Geral" })),
       teamNotes: openEvent.teamNotes || "", status: openEvent.status || "Confirmado",
     });
@@ -311,10 +314,30 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
     await originalData.patchDocument("events", event.id, { status: "Lixeira" });
     setNotice(`${event.title} foi enviado para a lixeira e pode ser recuperado.`);
   };
-  const financialItems: Array<Record<string, unknown> & { clientName: string }> = originalData.clients.flatMap((client) => (Array.isArray(client.pagamentos) ? client.pagamentos as Array<Record<string, unknown>> : []).map((payment) => ({ ...payment, clientName: String(client.nome || "Cliente") })));
+  const financialItems: Array<Record<string, unknown> & { clientId: string; clientName: string }> = originalData.clients.flatMap((client) => (Array.isArray(client.pagamentos) ? client.pagamentos as Array<Record<string, unknown>> : []).map((payment) => ({ ...payment, clientId: String(client.id), clientName: String(client.nome || "Cliente") })));
   const paidTotal = financialItems.filter((payment) => payment.status === "Pago").reduce((total, payment) => total + Number(payment.valor || 0), 0);
   const pendingItems = financialItems.filter((payment) => payment.status !== "Pago");
   const pendingTotal = pendingItems.reduce((total, payment) => total + Number(payment.valor || 0), 0);
+  const selectedClient = originalData.clients.find((client) => String(client.id) === selectedClientId) ?? originalData.clients[0];
+  const savePayment = async (item: Record<string, unknown> & { clientId: string; clientName: string }, status: "Pago" | "Pendente") => {
+    const client = originalData.clients.find((record) => String(record.id) === item.clientId);
+    if (!client) return;
+    const payments = Array.isArray(client.pagamentos) ? client.pagamentos as Array<Record<string, unknown>> : [];
+    const actualValue = Number(paymentValues[String(item.id)] ?? item.valor ?? 0);
+    const originalValue = Number(item.valor || 0);
+    const difference = actualValue - originalValue;
+    const next: Array<Record<string, unknown>> = payments.map((payment) => String(payment.id) === String(item.id) ? { ...payment, valor: actualValue, status, dataPagamento: status === "Pago" ? new Date().toISOString() : "", reciboId: status === "Pago" ? `RC-${Date.now()}` : "", reciboGeradoEm: status === "Pago" ? new Date().toISOString() : "" } : { ...payment });
+    if (difference !== 0) {
+      const lastPendingIndex = next.map((payment, index) => ({ payment, index })).filter(({ payment }) => String(payment.id) !== String(item.id) && payment.status !== "Pago").at(-1)?.index;
+      if (lastPendingIndex !== undefined) next[lastPendingIndex] = { ...next[lastPendingIndex], valor: Math.max(0, Number(next[lastPendingIndex].valor || 0) - difference) };
+    }
+    await originalData.patchDocument("clientes", item.clientId, { pagamentos: next });
+    setNotice(status === "Pago" ? `Pagamento registrado. ${difference ? "A última parcela pendente foi ajustada automaticamente." : ""}` : "Baixa estornada; a parcela voltou a ficar pendente.");
+  };
+  const shareReceipt = async (item: Record<string, unknown> & { clientId: string; clientName: string }) => {
+    const receipt = `RECIBO\nCliente: ${item.clientName}\nParcela: ${String(item.parcela || "—")}\nValor recebido: R$ ${Number(item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\nData: ${item.dataPagamento ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(String(item.dataPagamento))) : "A confirmar"}\nStudio Melk`;
+    try { if (navigator.share) await navigator.share({ title: "Recibo Studio Melk", text: receipt }); else await navigator.clipboard.writeText(receipt); setNotice("Recibo preparado para envio. Para enviar como PDF por e-mail, falta configurar o serviço de e-mail."); } catch { setNotice("Envio do recibo cancelado."); }
+  };
   if (view === "Lixeira") { const trash = originalData.events.filter((event) => event.status === "Lixeira"); return <section className="orders-layout"><div className="section-heading"><div><h2>Lixeira de eventos</h2><p>Eventos removidos podem ser recuperados sem perder os dados.</p></div><span className="stage-pill">{trash.length} itens</span></div><div className="trash-list">{trash.length ? trash.map((event) => <article className="trash-row" key={String(event.id)}><div><strong>{String(event.title || "Evento sem título")}</strong><span>{String(event.date || "Data não informada")} · {String(event.time || "Horário não informado")}</span></div><button className="outline-button" disabled={originalData.saving} onClick={async () => { await originalData.patchDocument("events", String(event.id), { status: "Confirmado" }); setNotice(`${String(event.title)} foi recuperado.`); }}><RotateCcw size={15} /> Recuperar</button></article>) : <div className="availability-note"><CheckCircle2 size={18} /><span>A lixeira está vazia.</span></div>}</div></section>; }
   if (view === "Agenda") return <section className="operations-grid">
     <div className="operations-main"><div className="section-heading"><div><h2>Agenda de produção</h2><p>Abra uma ficha para editar cada detalhe.</p></div><button className="primary-button" onClick={() => setCreating((value) => !value)}><Plus size={17} /> Novo evento</button></div>{creating && <form className="new-event-form" onSubmit={(event) => { event.preventDefault(); void createNewEvent(); }}><label>Evento<input value={newEvent.title} onChange={(event) => setNewEvent((current) => ({ ...current, title: event.target.value }))} /></label><label>Data<input type="date" value={newEvent.date} onChange={(event) => setNewEvent((current) => ({ ...current, date: event.target.value }))} /></label><label>Horário<input type="time" value={newEvent.time} onChange={(event) => setNewEvent((current) => ({ ...current, time: event.target.value }))} /></label><label>Local<input value={newEvent.place} onChange={(event) => setNewEvent((current) => ({ ...current, place: event.target.value }))} /></label><label className="form-wide">Instruções iniciais<textarea value={newEvent.notes} onChange={(event) => setNewEvent((current) => ({ ...current, notes: event.target.value }))} /></label><div className="new-event-actions"><button type="button" className="outline-button" onClick={() => setCreating(false)}>Cancelar</button><button type="submit" className="primary-button" disabled={originalData.saving}><Save size={16} /> Salvar evento</button></div></form>}
