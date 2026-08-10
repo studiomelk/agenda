@@ -10,6 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { leadStages, type LeadStage } from "../lib/lead-intake";
 import { importReadiness } from "../lib/solicitacao-normalizer";
+import { recoveredEvents, recoveredTeam } from "../lib/recovered-studio-data";
 
 type Lead = {
   id: string;
@@ -172,12 +173,34 @@ const events: EventRecord[] = [
   { id: "E-104", title: "Ensaio · proposta aceita", date: "Sex, 03 out", time: "09:00", place: "Local a combinar", status: "Pendente", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Ensaio fotográfico", value: "R$ 1.850", team: [{role:"Fotografia",person:"A definir"}], contract:"Pendente", paid:"—", remaining:"R$ 1.850" },
 ];
 
+const recoveredEventRecords: EventRecord[] = recoveredEvents.map((event) => {
+  const client = event.title.includes(" - ") ? event.title.split(" - ").slice(1).join(" - ") : event.title;
+  return {
+    id: event.id,
+    title: event.title,
+    date: new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(new Date(`${event.date}T12:00:00`)),
+    time: event.time === "00:00" ? "Horário a confirmar" : event.time,
+    place: event.place,
+    status: "Confirmado",
+    client,
+    email: "E-mail não informado",
+    phone: "Telefone não informado",
+    project: "Projeto recuperado do aplicativo original",
+    value: "Valor não informado",
+    team: event.team.length ? event.team.map((assignment) => ({ role: assignment.role === "Foto" ? "Fotografia" : "Vídeo", person: assignment.name })) : [{ role: "Equipe", person: "A definir" }],
+    contract: "Pendente",
+    paid: "Não informado",
+    remaining: "Não informado",
+  };
+});
+
 function OperationsWorkspace({ view, setNotice, leads }: OperationsWorkspaceProps) {
-  const records: EventRecord[] = leads.some((lead) => lead.source === "Gerador") ? leads.map((lead) => ({
+  const importedRecords: EventRecord[] = leads.filter((lead) => lead.source === "Gerador").map((lead) => ({
     id: `project-${lead.id}`, title: lead.event, date: lead.date, time: "Horário a confirmar", place: lead.venue || "Local a confirmar", status: lead.stage === "Aceita" ? "Confirmado" : "Pendente",
     client: lead.name, email: lead.email || "E-mail não informado", phone: lead.phone || "Telefone não informado", project: lead.service || "Serviço a confirmar", value: lead.value,
     team: [{ role: "Fotografia", person: "A definir" }, { role: "Vídeo", person: "A definir" }], contract: "Pendente", paid: "—", remaining: lead.value,
-  })) : events;
+  }));
+  const records: EventRecord[] = [...recoveredEventRecords, ...importedRecords];
   const [openEventId, setOpenEventId] = useState(records[0]?.id ?? events[0].id);
   const [featuredEvents, setFeaturedEvents] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
@@ -188,7 +211,7 @@ function OperationsWorkspace({ view, setNotice, leads }: OperationsWorkspaceProp
     </div><aside className="task-panel event-sheet"><div className="sheet-heading"><div><span>Ficha completa do projeto</span><h2>{openEvent.title}</h2></div><button className="sheet-close" onClick={() => setEditing(!editing)} aria-label="Editar ficha"><Pencil size={15} /></button></div>{editing && <div className="edit-note"><Pencil size={15} /> Modo edição preparado. Ao conectar o banco, estas alterações serão salvas no cadastro do projeto.</div>}<div className="sheet-section"><strong>Cliente e casal</strong><p><UserRound size={16} /> {openEvent.client}</p><p><Mail size={16} /> {openEvent.email}</p><p><Phone size={16} /> {openEvent.phone}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Área do cliente: pagamentos, contrato e histórico.")}>Área do cliente</button><button className="sheet-button" onClick={() => setNotice("Novo agendamento de ensaio criado para revisão.")}>Agendar ensaio</button></div></div><div className="sheet-section"><strong>Projeto contratado</strong><p><ClipboardList size={16} /> {openEvent.project}</p><p><CircleDollarSign size={16} /> {openEvent.value}</p><p><CalendarDays size={16} /> {openEvent.date}, {openEvent.time}</p><p><MapPin size={16} /> {openEvent.place}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(openEvent.place)}`} target="_blank" rel="noreferrer">Abrir no Google Maps <ExternalLink size={14} /></a></div><div className="sheet-section"><strong>Equipe e atribuições</strong>{openEvent.team.map(({role,person}) => <p key={role}><UserRoundCheck size={16} /> <b>{role}:</b> {person}</p>)}<button className="sheet-button" onClick={() => setNotice("Atribuições da equipe abertas para ajuste.")}>Editar equipe</button></div><div className="sheet-section"><strong>Contrato e pagamentos</strong><p><FileText size={16} /> Contrato: {openEvent.contract}</p><p><CheckCircle2 size={16} /> Já pago: {openEvent.paid}</p><p><Clock3 size={16} /> Falta receber: {openEvent.remaining}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Contrato aberto. Link do CRM ou PDF ficará disponível nesta ficha.")}>Abrir contrato</button><button className="sheet-button" onClick={() => setNotice("Anexo preparado: o PDF será guardado no banco unificado, não no navegador.")}><Paperclip size={14} /> Anexar PDF</button></div></div><button className="share-sheet" onClick={() => setNotice("Dados do projeto preparados para compartilhar com a equipe.")}><Share2 size={18} /> Compartilhar dados com equipe</button></aside>
   </section>;
 
-  if (view === "Equipe") return <section className="team-layout"><div className="section-heading"><div><h2>Equipe e disponibilidade</h2><p>Veja quem está livre antes de confirmar um evento.</p></div><button className="primary-button" onClick={() => setNotice("Novo membro será incluído na equipe de teste.")}><Plus size={17} /> Adicionar pessoa</button></div><div className="team-grid">{[{name:"Profissional de foto",role:"Fotografia",load:"Livre no próximo evento",tone:"rose"},{name:"Profissional de vídeo",role:"Videomaker",load:"1 evento confirmado",tone:"teal"},{name:"Edição",role:"Pós-produção",load:"2 entregas esta semana",tone:"violet"},{name:"Assistente",role:"Apoio de produção",load:"Livre no próximo evento",tone:"gold"}].map((member) => <article className="member-card" key={member.role}><span className={`avatar large ${member.tone}`}>{member.role.slice(0,1)}</span><div><h3>{member.name}</h3><p>{member.role}</p></div><strong>{member.load}</strong><button className="outline-button" onClick={() => setNotice(`Agenda de ${member.role} aberta.`)}><CalendarDays size={15} /> Ver agenda</button></article>)}</div><div className="availability-note"><UserRoundCheck size={18} /><span><strong>Regra simples:</strong> se a pessoa já estiver em outro evento no mesmo horário, o sistema avisa antes de confirmar.</span></div></section>;
+  if (view === "Equipe") return <section className="team-layout"><div className="section-heading"><div><h2>Equipe e disponibilidade</h2><p>Profissionais recuperados do aplicativo original.</p></div><button className="primary-button" onClick={() => setNotice("Cadastro de profissional preparado para o banco unificado.")}><Plus size={17} /> Adicionar pessoa</button></div><div className="team-grid">{recoveredTeam.map((name, index) => { const assignments = recoveredEvents.flatMap((event) => event.team).filter((member) => member.name === name); const roles = [...new Set(assignments.map((member) => member.role))].join(" e ") || "Função a definir"; return <article className="member-card" key={name}><span className={`avatar large ${["rose","teal","violet","gold","blue"][index % 5]}`}>{name.slice(0,1)}</span><div><h3>{name}</h3><p>{roles}</p></div><strong>{assignments.length} atribuições recuperadas</strong><button className="outline-button" onClick={() => setNotice(`Agenda de ${name} aberta com ${assignments.length} atribuições.`)}><CalendarDays size={15} /> Ver agenda</button></article>; })}</div><div className="availability-note"><UserRoundCheck size={18} /><span><strong>Regra simples:</strong> se a pessoa já estiver em outro evento no mesmo horário, o sistema avisa antes de confirmar.</span></div></section>;
 
   if (view === "Financeiro") return <section className="finance-layout"><div className="section-heading"><div><h2>Financeiro simples</h2><p>Veja só o que entrou, o que falta entrar e o próximo passo.</p></div><button className="primary-button" onClick={() => setNotice("Recebimento registrado somente nesta demonstração.")}><Plus size={17} /> Registrar recebimento</button></div><div className="money-summary"><article><span>Já entrou</span><strong>R$ 6.200</strong><small>Pagamentos confirmados</small></article><article><span>Falta receber</span><strong>R$ 12.450</strong><small>Próximas parcelas e sinais</small></article><article className="money-action"><WalletCards size={22} /><strong>Próximo passo</strong><p>Enviar lembrete de pagamento antes do evento.</p></article></div><div className="simple-ledger"><div className="section-heading"><div><h2>O que precisa da sua atenção</h2><p>Sem termos contábeis.</p></div></div>{[{title:"Sinal do evento",value:"R$ 1.680",when:"Vence em 2 dias",state:"Cobrar"},{title:"Recibo pronto para enviar",value:"R$ 2.200",when:"Pagamento confirmado",state:"Enviar"},{title:"Parcela do contrato",value:"R$ 3.400",when:"Vence na próxima semana",state:"Lembrar"}].map((item) => <div className="ledger-row" key={item.title}><ReceiptText size={19} /><div><strong>{item.title}</strong><span>{item.when}</span></div><b>{item.value}</b><button className="outline-button" onClick={() => setNotice(`${item.state}: fluxo de teste preparado.`)}>{item.state}</button></div>)}</div></section>;
 
