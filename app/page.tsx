@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight, CalendarDays, Check, ChevronRight, CircleDollarSign,
   ClipboardList, FileText, LayoutDashboard, MessageCircle, Plus,
@@ -15,7 +15,7 @@ type Lead = {
   id: string;
   name: string;
   initials: string;
-  source: "Proposta" | "WhatsApp" | "Formulário";
+  source: "Proposta" | "WhatsApp" | "Formulário" | "Gerador";
   stage: LeadStage;
   event: string;
   date: string;
@@ -43,11 +43,32 @@ export default function Page() {
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState("Visão geral");
   const [selectedId, setSelectedId] = useState(initialLeads[0].id);
+  const [accessKey, setAccessKey] = useState("");
   const [notice, setNotice] = useState("A integração do Gerador será recebida aqui, sem gravar no banco atual.");
   const selected = leads.find((lead) => lead.id === selectedId) ?? leads[0];
   const filtered = useMemo(() => leads.filter((lead) =>
     `${lead.name} ${lead.event} ${lead.source}`.toLowerCase().includes(query.toLowerCase())), [leads, query]);
   const activeStages: LeadStage[] = ["Novo lead", "Qualificado", "Proposta enviada", "Negociação", "Aceita"];
+
+  useEffect(() => {
+    if (!accessKey) return;
+    fetch("/api/staging/solicitacoes", { headers: { "x-manager-access": accessKey }, cache: "no-store" })
+      .then(async (response) => ({ ok: response.ok, data: await response.json() }))
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.error || "Não foi possível abrir os dados privados.");
+        const imported = (data.records as Array<{ externalId: string; displayName: string; eventTitle: string; eventDate?: string; total?: string; stage: LeadStage }>).map((record, index) => ({
+          id: record.externalId, name: record.displayName,
+          initials: record.displayName.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "CL",
+          source: "Gerador" as const, stage: record.stage, event: record.eventTitle,
+          date: record.eventDate ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(`${record.eventDate}T12:00:00`)) : "Data a confirmar",
+          value: record.total ? `R$ ${Number(record.total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor a confirmar",
+          next: "Revisar ficha do cliente", tone: ["rose", "teal", "violet", "gold", "blue"][index % 5],
+        }));
+        if (imported.length) { setLeads(imported); setSelectedId(imported[0].id); }
+        setNotice(`${imported.length} registros privados carregados do staging.`);
+      })
+      .catch((error: Error) => setNotice(error.message));
+  }, [accessKey]);
 
   function advanceLead() {
     const position = leadStages.indexOf(selected.stage);
@@ -118,7 +139,7 @@ export default function Page() {
             {filtered.map((lead) => <tr key={lead.id} onClick={() => setSelectedId(lead.id)} className={selected.id === lead.id ? "row-selected" : ""}><td><span className={`avatar table-avatar ${lead.tone}`}>{lead.initials}</span><strong>{lead.name}</strong></td><td>{lead.source}</td><td><span className="stage-pill">{lead.stage}</span></td><td>{lead.date}</td><td>{lead.next}<ChevronRight size={15} /></td></tr>)}
           </tbody></table></div>
         </section>
-        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} />}
+        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} onUnlock={setAccessKey} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} />}
       </section>
     </main>
   );
@@ -126,12 +147,13 @@ export default function Page() {
 
 type OperationsWorkspaceProps = { view: string; setNotice: (message: string) => void };
 
-function ImportWorkspace({ setNotice }: { setNotice: (message: string) => void }) {
+function ImportWorkspace({ setNotice, onUnlock }: { setNotice: (message: string) => void; onUnlock: (password: string) => void }) {
+  const [password, setPassword] = useState("");
   return <section className="import-layout">
     <div className="section-heading"><div><h2>Importação protegida</h2><p>Seus dados reais ficam no Firebase; esta tela só mostra o que está pronto para migrar.</p></div><span className="stage-pill">Cópia de teste</span></div>
     <div className="import-summary"><article><span>Origem conectada</span><strong>{importReadiness.source}</strong><small>Leitura conferida em 9 de agosto</small></article><article><span>Registros encontrados</span><strong>{importReadiness.recordsFound} solicitações</strong><small>Sem alteração no aplicativo atual</small></article><article><span>Destino</span><strong>Manager Next · staging</strong><small>Banco separado antes da publicação</small></article></div>
     <div className="import-checklist"><h3>Campos prontos para o fluxo</h3><p>O conversor já reconhece a estrutura usada pelo Gerador.</p><div>{importReadiness.fieldsReady.map((field) => <span key={field}><CheckCircle2 size={16} /> {field}</span>)}</div></div>
-    <div className="import-next"><ShieldCheck size={22} /><div><h3>Próximo passo seguro</h3><p>Criar o banco privado de staging e importar as solicitações sem expor nomes, contatos ou contratos no site público.</p></div><button className="primary-button" onClick={() => setNotice("Banco de staging será conectado antes de importar os dados reais.")}>Preparar staging <ChevronRight size={17} /></button></div>
+    <div className="import-next"><ShieldCheck size={22} /><div><h3>Abrir dados privados</h3><p>Use a senha do Manager Next. Ela não fica gravada no navegador e só libera a leitura nesta sessão.</p></div><form className="unlock-form" onSubmit={(event) => { event.preventDefault(); if (!password) return setNotice("Digite a senha de acesso para continuar."); onUnlock(password); setPassword(""); }}><input aria-label="Senha de acesso" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" /><button className="primary-button" type="submit">Acessar dados <ChevronRight size={17} /></button></form></div>
   </section>;
 }
 
