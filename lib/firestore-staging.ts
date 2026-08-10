@@ -79,3 +79,41 @@ export async function readStagingRequests() {
   const body = await response.json() as { documents?: Array<{ name?: string; fields?: Record<string, unknown> }> };
   return { configured: true as const, records: (body.documents ?? []).map(decodeDocument).map(normalizeGeneratorRequest) };
 }
+
+/**
+ * Returns only the shape of the protected copy.  It is deliberately separate
+ * from the UI data endpoint so we can verify what was actually migrated before
+ * presenting any client information in the Manager.
+ */
+export async function readStagingInventory() {
+  const account = credentials();
+  if (!account) return { configured: false as const, collections: [] };
+
+  const token = await accessToken(account);
+  const base = `https://firestore.googleapis.com/v1/projects/${account.projectId}/databases/${databaseId}/documents`;
+  const listResponse = await fetch(`${base}:listCollectionIds`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ pageSize: 100 }),
+    cache: "no-store",
+  });
+  if (!listResponse.ok) throw new Error("Não foi possível verificar as coleções do staging.");
+  const { collectionIds = [] } = await listResponse.json() as { collectionIds?: string[] };
+
+  const collections = await Promise.all(collectionIds.map(async (collection) => {
+    const response = await fetch(`${base}/${encodeURIComponent(collection)}?pageSize=100`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!response.ok) return { collection, records: 0, fields: [] as string[] };
+    const body = await response.json() as { documents?: Array<{ fields?: Record<string, unknown> }> };
+    const documents = body.documents ?? [];
+    return {
+      collection,
+      records: documents.length,
+      fields: [...new Set(documents.flatMap((document) => Object.keys(document.fields ?? {})))].sort(),
+    };
+  }));
+
+  return { configured: true as const, collections };
+}
