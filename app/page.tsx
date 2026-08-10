@@ -11,6 +11,7 @@ import type { LucideIcon } from "lucide-react";
 import { leadStages, type LeadStage } from "../lib/lead-intake";
 import { importReadiness } from "../lib/solicitacao-normalizer";
 import { recoveredEvents, recoveredTeam } from "../lib/recovered-studio-data";
+import { useOriginalStudioData, type OriginalStudioData } from "../lib/firebase-original";
 
 type Lead = {
   id: string;
@@ -47,6 +48,7 @@ const navigation: [LucideIcon, string][] = [
 ];
 
 export default function Page() {
+  const originalData = useOriginalStudioData();
   const [leads, setLeads] = useState(initialLeads);
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState("Visão geral");
@@ -78,6 +80,33 @@ export default function Page() {
       })
       .catch((error: Error) => setNotice(error.message));
   }, [accessKey]);
+
+  useEffect(() => {
+    if (!originalData.requests.length) return;
+    const sourceLeads = originalData.requests.map((request, index) => {
+      const contractor = (request.dadosContratante ?? {}) as Record<string, unknown>;
+      const eventData = (request.dadosEvento ?? {}) as Record<string, unknown>;
+      const commercial = (request.dadosComerciais ?? {}) as Record<string, unknown>;
+      const name = String(contractor.nome || "Cliente sem nome");
+      const rawValue = Number(commercial.valorTotal || 0);
+      return {
+        id: String(request.id), name,
+        initials: name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "CL",
+        source: "Gerador" as const,
+        stage: (request.status === "Pendente" ? "Novo lead" : "Qualificado") as LeadStage,
+        event: String(request.tipoEvento || "Evento a confirmar"),
+        date: String(eventData.data || "Data a confirmar"),
+        value: rawValue ? `R$ ${rawValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor a confirmar",
+        next: request.status === "Pendente" ? "Revisar solicitação" : "Abrir cadastro",
+        tone: ["rose", "teal", "violet", "gold", "blue"][index % 5],
+        email: String(contractor.email || ""), phone: String(contractor.whatsapp || ""),
+        service: String(commercial.servico || ""), venue: String(eventData.local || eventData.localFesta || ""),
+      } satisfies Lead;
+    });
+    setLeads(sourceLeads);
+    setSelectedId(sourceLeads[0].id);
+    setNotice(`${sourceLeads.length} solicitações reais carregadas do banco principal do Studio Melk.`);
+  }, [originalData.requests]);
 
   function advanceLead() {
     const position = leadStages.indexOf(selected.stage);
@@ -148,21 +177,21 @@ export default function Page() {
             {filtered.map((lead) => <tr key={lead.id} onClick={() => setSelectedId(lead.id)} className={selected.id === lead.id ? "row-selected" : ""}><td><span className={`avatar table-avatar ${lead.tone}`}>{lead.initials}</span><strong>{lead.name}</strong></td><td>{lead.source}</td><td><span className="stage-pill">{lead.stage}</span></td><td>{lead.date}</td><td>{lead.next}<ChevronRight size={15} /></td></tr>)}
           </tbody></table></div>
         </section>
-        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} onUnlock={setAccessKey} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} leads={leads} />}
+        </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} onUnlock={setAccessKey} originalData={originalData} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} leads={leads} originalData={originalData} />}
       </section>
     </main>
   );
 }
 
-type OperationsWorkspaceProps = { view: string; setNotice: (message: string) => void; leads: Lead[] };
+type OperationsWorkspaceProps = { view: string; setNotice: (message: string) => void; leads: Lead[]; originalData: OriginalStudioData };
 
-function ImportWorkspace({ setNotice, onUnlock }: { setNotice: (message: string) => void; onUnlock: (password: string) => void }) {
+function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (message: string) => void; onUnlock: (password: string) => void; originalData: OriginalStudioData }) {
   const [password, setPassword] = useState("");
   return <section className="import-layout">
-    <div className="section-heading"><div><h2>Importação protegida</h2><p>Seus dados reais ficam no Firebase; esta tela só mostra o que está pronto para migrar.</p></div><span className="stage-pill">Cópia de teste</span></div>
-    <div className="import-summary"><article><span>Origem conectada</span><strong>{importReadiness.source}</strong><small>Leitura conferida em 9 de agosto</small></article><article><span>Registros encontrados</span><strong>{importReadiness.recordsFound} solicitações</strong><small>Sem alteração no aplicativo atual</small></article><article><span>Destino</span><strong>Manager Next · staging</strong><small>Banco separado antes da publicação</small></article></div>
+    <div className="section-heading"><div><h2>Banco principal conectado</h2><p>Leitura direta do Firebase usado pelo aplicativo anterior, sem alterar seus registros.</p></div><span className="stage-pill">Dados reais</span></div>
+    <div className="import-summary"><article><span>Origem conectada</span><strong>Studio Melk · Firebase principal</strong><small>{originalData.error ? "Conexão precisa de revisão" : "Conexão automática ativa"}</small></article><article><span>Dados localizados</span><strong>{originalData.events.length} eventos · {originalData.clients.length} clientes</strong><small>{originalData.orders.length} pedidos e {originalData.transactions.length} movimentações</small></article><article><span>Equipe e solicitações</span><strong>{originalData.teamMembers.length} profissionais · {originalData.requests.length} leads</strong><small>O aplicativo anterior permanece preservado</small></article></div>
     <div className="import-checklist"><h3>Campos prontos para o fluxo</h3><p>O conversor já reconhece a estrutura usada pelo Gerador.</p><div>{importReadiness.fieldsReady.map((field) => <span key={field}><CheckCircle2 size={16} /> {field}</span>)}</div></div>
-    <div className="import-next"><ShieldCheck size={22} /><div><h3>Abrir dados privados</h3><p>Use a senha do Manager Next. Ela não fica gravada no navegador e só libera a leitura nesta sessão.</p></div><form className="unlock-form" onSubmit={(event) => { event.preventDefault(); if (!password) return setNotice("Digite a senha de acesso para continuar."); onUnlock(password); setPassword(""); }}><input aria-label="Senha de acesso" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" /><button className="primary-button" type="submit">Acessar dados <ChevronRight size={17} /></button></form></div>
+    <div className="import-next"><ShieldCheck size={22} /><div><h3>{originalData.loading ? "Carregando banco principal" : "Banco principal disponível"}</h3><p>{originalData.error ? `Falha de leitura: ${originalData.error}` : "Não é necessária uma senha adicional. Os dados são autenticados pelo mesmo Firebase do aplicativo anterior."}</p></div></div>
   </section>;
 }
 
@@ -194,13 +223,35 @@ const recoveredEventRecords: EventRecord[] = recoveredEvents.map((event) => {
   };
 });
 
-function OperationsWorkspace({ view, setNotice, leads }: OperationsWorkspaceProps) {
+function OperationsWorkspace({ view, setNotice, leads, originalData }: OperationsWorkspaceProps) {
   const importedRecords: EventRecord[] = leads.filter((lead) => lead.source === "Gerador").map((lead) => ({
     id: `project-${lead.id}`, title: lead.event, date: lead.date, time: "Horário a confirmar", place: lead.venue || "Local a confirmar", status: lead.stage === "Aceita" ? "Confirmado" : "Pendente",
     client: lead.name, email: lead.email || "E-mail não informado", phone: lead.phone || "Telefone não informado", project: lead.service || "Serviço a confirmar", value: lead.value,
     team: [{ role: "Fotografia", person: "A definir" }, { role: "Vídeo", person: "A definir" }], contract: "Pendente", paid: "—", remaining: lead.value,
   }));
-  const baseRecords: EventRecord[] = [...recoveredEventRecords, ...importedRecords];
+  const originalRecords: EventRecord[] = originalData.events.map((event) => {
+    const client = originalData.clients.find((item) => item.id === event.clientId);
+    const order = originalData.orders.find((item) => item.clientId === event.clientId);
+    const payments = Array.isArray(client?.pagamentos) ? client.pagamentos as Array<Record<string, unknown>> : [];
+    const paidValue = payments.filter((payment) => payment.status === "Pago").reduce((total, payment) => total + Number(payment.valor || 0), 0);
+    const totalValue = Number(order?.valorTotal || 0);
+    const team = Array.isArray(event.team) ? event.team as Array<Record<string, unknown>> : [];
+    return {
+      id: String(event.id), title: String(event.title || "Evento sem título"),
+      date: event.date ? new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(new Date(`${event.date}T12:00:00`)) : "Data a confirmar",
+      time: String(event.time || "Horário a confirmar"),
+      place: String(event.locCerimonia || event.locFesta || "Local a confirmar"),
+      status: String(event.status || "Pendente"), client: String(client?.nome || event.title || "Cliente não informado"),
+      email: String(client?.email || "E-mail não informado"), phone: String(client?.whatsapp || "Telefone não informado"),
+      project: String(order?.servicos || event.services || "Projeto não informado"),
+      value: totalValue ? `R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor não informado",
+      team: team.length ? team.map((member) => ({ role: String(member.role || "Equipe"), person: String(member.name || "A definir") })) : [{ role: "Equipe", person: "A definir" }],
+      contract: order ? "Link do CRM" : "Pendente",
+      paid: paidValue ? `R$ ${paidValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Não informado",
+      remaining: totalValue ? `R$ ${Math.max(0, totalValue - paidValue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Não informado",
+    };
+  });
+  const baseRecords: EventRecord[] = originalRecords.length ? originalRecords : [...recoveredEventRecords, ...importedRecords];
   const [openEventId, setOpenEventId] = useState(baseRecords[0]?.id ?? events[0].id);
   const [featuredEvents, setFeaturedEvents] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
@@ -231,7 +282,7 @@ function OperationsWorkspace({ view, setNotice, leads }: OperationsWorkspaceProp
     </div><aside className="task-panel event-sheet"><div className="sheet-heading"><div><span>Ficha completa do projeto</span><h2>{openEvent.title}</h2></div><button className={`sheet-close ${editing ? "is-editing" : ""}`} onClick={() => setEditing(!editing)} aria-label="Editar ficha" aria-pressed={editing}><Pencil size={15} /></button></div><div className="sheet-summary"><span>{openEvent.status}</span><span>{openEvent.team.length} pessoas na equipe</span><span>{openEvent.contract}</span></div>{editing && <form className="edit-form" onSubmit={(event) => { event.preventDefault(); setEditing(false); setNotice("Ficha atualizada nesta prévia. A gravação permanente entra com o banco unificado."); }}><div className="edit-form-heading"><Pencil size={15} /><span>Editar ficha nesta prévia</span></div><label>Nome do projeto<input value={openEvent.title} onChange={(event) => updateOpenEvent("title", event.target.value)} /></label><label>Cliente ou casal<input value={openEvent.client} onChange={(event) => updateOpenEvent("client", event.target.value)} /></label><div className="form-pair"><label>Data<input value={openEvent.date} onChange={(event) => updateOpenEvent("date", event.target.value)} /></label><label>Horário<input value={openEvent.time} onChange={(event) => updateOpenEvent("time", event.target.value)} /></label></div><label>Local<input value={openEvent.place} onChange={(event) => updateOpenEvent("place", event.target.value)} /></label><label>Projeto contratado<input value={openEvent.project} onChange={(event) => updateOpenEvent("project", event.target.value)} /></label><button className="save-preview-button" type="submit"><Check size={16} /> Concluir edição</button></form>}<div className="sheet-section"><strong>Cliente e casal</strong><p><UserRound size={16} /> {openEvent.client}</p><p><Mail size={16} /> {openEvent.email}</p><p><Phone size={16} /> {openEvent.phone}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Área do cliente preparada: pagamentos, contrato, histórico e próximos agendamentos.")}>Área do cliente</button><button className="sheet-button" onClick={() => setNotice("Novo ensaio preparado na ficha; será confirmado ao ligar o calendário e o banco.")}>Agendar ensaio</button></div></div><div className="sheet-section"><strong>Projeto contratado</strong><p><ClipboardList size={16} /> {openEvent.project}</p><p><CircleDollarSign size={16} /> {openEvent.value}</p><p><CalendarDays size={16} /> {openEvent.date}, {openEvent.time}</p><p><MapPin size={16} /> {openEvent.place}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(openEvent.place)}`} target="_blank" rel="noreferrer">Abrir no Google Maps <ExternalLink size={14} /></a></div><div className="sheet-section"><strong>Equipe e atribuições</strong>{openEvent.team.map(({role,person}) => <p key={`${role}-${person}`}><UserRoundCheck size={16} /> <b>{role}:</b> {person}</p>)}<button className="sheet-button" onClick={() => setNotice("Atribuições da equipe serão editáveis junto do banco unificado.")}>Editar equipe</button></div><div className="sheet-section"><strong>Contrato e pagamentos</strong><p><FileText size={16} /> Contrato: {openEvent.contract}</p><p><CheckCircle2 size={16} /> Já pago: {openEvent.paid}</p><p><Clock3 size={16} /> Falta receber: {openEvent.remaining}</p><div className="sheet-actions"><button className="sheet-button" onClick={() => setNotice("Contrato: a ficha aceitará link do CRM ou PDF quando o armazenamento estiver conectado.")}>Abrir contrato</button><button className="sheet-button" onClick={() => setNotice("Anexo preparado: o PDF será guardado no banco unificado, não apenas neste navegador.")}><Paperclip size={14} /> Anexar PDF</button></div></div><button className="share-sheet" onClick={() => void shareEvent(openEvent)}><Share2 size={18} /> Compartilhar dados com equipe</button></aside>
   </section>;
 
-  if (view === "Equipe") return <section className="team-layout"><div className="section-heading"><div><h2>Equipe e disponibilidade</h2><p>Profissionais recuperados do aplicativo original.</p></div><button className="primary-button" onClick={() => setNotice("Cadastro de profissional preparado para o banco unificado.")}><Plus size={17} /> Adicionar pessoa</button></div><div className="team-grid">{recoveredTeam.map((name, index) => { const assignments = recoveredEvents.flatMap((event) => event.team).filter((member) => member.name === name); const roles = [...new Set(assignments.map((member) => member.role))].join(" e ") || "Função a definir"; return <article className="member-card" key={name}><span className={`avatar large ${["rose","teal","violet","gold","blue"][index % 5]}`}>{name.slice(0,1)}</span><div><h3>{name}</h3><p>{roles}</p></div><strong>{assignments.length} atribuições recuperadas</strong><button className="outline-button" onClick={() => setNotice(`Agenda de ${name} aberta com ${assignments.length} atribuições.`)}><CalendarDays size={15} /> Ver agenda</button></article>; })}</div><div className="availability-note"><UserRoundCheck size={18} /><span><strong>Regra simples:</strong> se a pessoa já estiver em outro evento no mesmo horário, o sistema avisa antes de confirmar.</span></div></section>;
+  if (view === "Equipe") { const actualTeam = originalData.teamMembers.length ? originalData.teamMembers.map((member) => String(member.name || member.nome || "Profissional")) : [...recoveredTeam]; return <section className="team-layout"><div className="section-heading"><div><h2>Equipe e disponibilidade</h2><p>Profissionais carregados do banco principal.</p></div><button className="primary-button" onClick={() => setNotice("Cadastro de profissional será gravado no banco principal após a etapa de escrita segura.")}><Plus size={17} /> Adicionar pessoa</button></div><div className="team-grid">{actualTeam.map((name, index) => { const assignments = originalRecords.flatMap((event) => event.team).filter((member) => member.person === name); const roles = [...new Set(assignments.map((member) => member.role))].join(" e ") || "Função a definir"; return <article className="member-card" key={`${name}-${index}`}><span className={`avatar large ${["rose","teal","violet","gold","blue"][index % 5]}`}>{name.slice(0,1)}</span><div><h3>{name}</h3><p>{roles}</p></div><strong>{assignments.length} atribuições no banco</strong><button className="outline-button" onClick={() => setNotice(`Agenda de ${name} aberta com ${assignments.length} atribuições.`)}><CalendarDays size={15} /> Ver agenda</button></article>; })}</div><div className="availability-note"><UserRoundCheck size={18} /><span><strong>Regra simples:</strong> se a pessoa já estiver em outro evento no mesmo horário, o sistema avisa antes de confirmar.</span></div></section>; }
 
   if (view === "Financeiro") return <section className="finance-layout"><div className="section-heading"><div><h2>Financeiro simples</h2><p>Veja só o que entrou, o que falta entrar e o próximo passo.</p></div><button className="primary-button" onClick={() => setNotice("Recebimento registrado somente nesta demonstração.")}><Plus size={17} /> Registrar recebimento</button></div><div className="money-summary"><article><span>Já entrou</span><strong>R$ 6.200</strong><small>Pagamentos confirmados</small></article><article><span>Falta receber</span><strong>R$ 12.450</strong><small>Próximas parcelas e sinais</small></article><article className="money-action"><WalletCards size={22} /><strong>Próximo passo</strong><p>Enviar lembrete de pagamento antes do evento.</p></article></div><div className="simple-ledger"><div className="section-heading"><div><h2>O que precisa da sua atenção</h2><p>Sem termos contábeis.</p></div></div>{[{title:"Sinal do evento",value:"R$ 1.680",when:"Vence em 2 dias",state:"Cobrar"},{title:"Recibo pronto para enviar",value:"R$ 2.200",when:"Pagamento confirmado",state:"Enviar"},{title:"Parcela do contrato",value:"R$ 3.400",when:"Vence na próxima semana",state:"Lembrar"}].map((item) => <div className="ledger-row" key={item.title}><ReceiptText size={19} /><div><strong>{item.title}</strong><span>{item.when}</span></div><b>{item.value}</b><button className="outline-button" onClick={() => setNotice(`${item.state}: fluxo de teste preparado.`)}>{item.state}</button></div>)}</div></section>;
 
