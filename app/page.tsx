@@ -187,10 +187,27 @@ type OperationsWorkspaceProps = { view: string; setNotice: (message: string) => 
 
 function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (message: string) => void; onUnlock: (password: string) => void; originalData: OriginalStudioData }) {
   const [password, setPassword] = useState("");
+  const [pairCode, setPairCode] = useState("Melk21");
+  const [connecting, setConnecting] = useState(false);
+  const [connected, setConnected] = useState(false);
+  async function connectFlow() {
+    setConnecting(true);
+    try {
+      const response = await fetch("/api/integrations/gerador", { headers: { "x-studio-pair-code": pairCode }, cache: "no-store" });
+      const data = await response.json() as { connected?: boolean; error?: string };
+      if (!response.ok || !data.connected) throw new Error(data.error || "Não foi possível conectar.");
+      setConnected(true);
+      setNotice("Studio Melk Flow conectado. Propostas e contratos enviados pelo Flow entrarão neste CRM.");
+    } catch (error) {
+      setConnected(false);
+      setNotice(error instanceof Error ? error.message : "Não foi possível validar o código de conexão.");
+    } finally { setConnecting(false); }
+  }
   return <section className="import-layout">
     <div className="section-heading"><div><h2>Banco principal conectado</h2><p>Leitura direta do Firebase usado pelo aplicativo anterior, sem alterar seus registros.</p></div><span className="stage-pill">Dados reais</span></div>
     <div className="import-summary"><article><span>Origem conectada</span><strong>Studio Melk · Firebase principal</strong><small>{originalData.error ? "Conexão precisa de revisão" : "Conexão automática ativa"}</small></article><article><span>Dados localizados</span><strong>{originalData.events.length} eventos · {originalData.clients.length} clientes</strong><small>{originalData.orders.length} pedidos e {originalData.transactions.length} movimentações</small></article><article><span>Equipe e solicitações</span><strong>{originalData.teamMembers.length} profissionais · {originalData.requests.length} leads</strong><small>O aplicativo anterior permanece preservado</small></article></div>
     <div className="import-checklist"><h3>Campos prontos para o fluxo</h3><p>O conversor já reconhece a estrutura usada pelo Gerador.</p><div>{importReadiness.fieldsReady.map((field) => <span key={field}><CheckCircle2 size={16} /> {field}</span>)}</div></div>
+    <div className="import-next integration-card"><ShieldCheck size={22} /><div><h3>{connected ? "Studio Melk Flow conectado" : "Conectar Studio Melk Flow"}</h3><p>Informe o mesmo código no Flow e aqui. Código inicial: <strong>Melk21</strong>. Você poderá trocá-lo depois nas variáveis do projeto.</p><label className="pair-code-field">Código de conexão<input value={pairCode} onChange={(event) => setPairCode(event.target.value)} autoCapitalize="none" /></label></div><button className="primary-button" type="button" disabled={connecting || !pairCode.trim()} onClick={() => void connectFlow()}>{connected ? <CheckCircle2 size={16} /> : <ArrowUpRight size={16} />}{connecting ? "Verificando…" : connected ? "Conectado" : "Conectar"}</button></div>
     <div className="import-next"><ShieldCheck size={22} /><div><h3>{originalData.loading ? "Carregando banco principal" : "Banco principal disponível"}</h3><p>{originalData.error ? `Falha de leitura: ${originalData.error}` : "Não é necessária uma senha adicional. Os dados são autenticados pelo mesmo Firebase do aplicativo anterior."}</p></div></div>
   </section>;
 }

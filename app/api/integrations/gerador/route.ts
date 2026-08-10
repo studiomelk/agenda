@@ -68,3 +68,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Falha ao importar." }, { status: 502 });
   }
 }
+
+export async function GET(request: Request) {
+  const pairCode = request.headers.get("x-studio-pair-code");
+  const expectedPairCode = process.env.GERADOR_PAIR_CODE || "Melk21";
+  if (!pairCode || pairCode !== expectedPairCode) return NextResponse.json({ connected: false, error: "Código de conexão inválido." }, { status: 401 });
+  if (!process.env.GERADOR_SYNC_SECRET) return NextResponse.json({ connected: false, error: "A chave interna da integração não está configurada." }, { status: 503 });
+  return NextResponse.json({ connected: true, application: "Studio Melk Flow", sync: "ativa" }, { headers: { "cache-control": "no-store" } });
+}
