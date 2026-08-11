@@ -17,8 +17,10 @@ type Payload = {
 
 function normalizedDate(value: unknown) {
   const text = String(value || "").trim();
-  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : text;
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/);
+  if (!match) return text;
+  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+  return `${year}-${match[2]}-${match[1]}`;
 }
 
 async function token() {
@@ -43,9 +45,10 @@ function fields(data: Record<string, unknown>) { return Object.fromEntries(Objec
 
 function paymentSchedule(text: unknown, total: number, dueDate?: unknown) {
   const schedule = String(text || "").split("\n").map((line, index) => {
-    const match = line.match(/(\d+)ª:\s*(\d{2}\/\d{2}\/\d{4})\s*—\s*R\$\s*([\d.,]+)/);
+    const match = line.match(/(\d+)ª:\s*(\d{2}\/\d{2}\/(?:\d{2}|\d{4}))\s*—\s*R\$\s*([\d.,]+)/);
     if (!match) return null;
-    const [day, month, year] = match[2].split("/");
+    const [day, month, rawYear] = match[2].split("/");
+    const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
     const value = Number(match[3].replace(/\./g, "").replace(",", ".")) || 0;
     return { id: `parcela-${index + 1}`, parcela: Number(match[1]), valor: value, status: "Pendente", vencimento: `${year}-${month}-${day}` };
   }).filter(Boolean);
@@ -62,7 +65,10 @@ async function write(collection: string, id: string, data: Record<string, unknow
 
 export async function POST(request: Request) {
   const expected = process.env.GERADOR_SYNC_SECRET;
-  if (!expected || request.headers.get("authorization") !== `Bearer ${expected}`) return NextResponse.json({ error: "Integração não autorizada." }, { status: 401 });
+  const expectedPairCode = process.env.GERADOR_PAIR_CODE || "Melk21";
+  const internalAuthorized = Boolean(expected && request.headers.get("authorization") === `Bearer ${expected}`);
+  const publicAuthorized = request.headers.get("x-studio-pair-code") === expectedPairCode;
+  if (!internalAuthorized && !publicAuthorized) return NextResponse.json({ error: "Integração não autorizada." }, { status: 401, headers: { "access-control-allow-origin": "*" } });
   const payload = await request.json().catch(() => null) as Payload | null;
   if (!payload?.type || !payload.externalId) return NextResponse.json({ error: "Envie type e externalId." }, { status: 400 });
   try {
@@ -86,10 +92,14 @@ export async function POST(request: Request) {
       await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: eventDate, time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
       await write("pedidos", `gerador-order-${payload.externalId}`, { integrationId: payload.externalId, clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
     }
-    return NextResponse.json({ ok: true, imported: payload.type, externalId: payload.externalId, agendaCreated: payload.type === "contract", message: payload.type === "contract" ? "Contrato recebido: ficha, agenda e financeiro foram criados." : "Proposta recebida no funil comercial." });
+    return NextResponse.json({ ok: true, imported: payload.type, externalId: payload.externalId, agendaCreated: payload.type === "contract", message: payload.type === "contract" ? "Contrato recebido: ficha, agenda e financeiro foram criados." : "Proposta recebida no funil comercial." }, { headers: { "access-control-allow-origin": "*" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Falha ao importar." }, { status: 502 });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type, x-studio-pair-code", "access-control-max-age": "86400" } });
 }
 
 export async function GET(request: Request) {

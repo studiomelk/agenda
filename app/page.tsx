@@ -52,10 +52,10 @@ export default function Page() {
   const [leads, setLeads] = useState(initialLeads);
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState("Visão geral");
-  const [selectedId, setSelectedId] = useState(initialLeads[0].id);
+  const [selectedId, setSelectedId] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [notice, setNotice] = useState("A integração do Gerador será recebida aqui, sem gravar no banco atual.");
-  const selected = leads.find((lead) => lead.id === selectedId) ?? leads[0];
+  const selected = leads.find((lead) => lead.id === selectedId);
   const filtered = useMemo(() => leads.filter((lead) =>
     `${lead.name} ${lead.event} ${lead.source}`.toLowerCase().includes(query.toLowerCase())), [leads, query]);
   const activeStages: LeadStage[] = ["Novo lead", "Qualificado", "Proposta enviada", "Negociação", "Aceita"];
@@ -75,7 +75,7 @@ export default function Page() {
           next: "Revisar ficha do cliente", tone: ["rose", "teal", "violet", "gold", "blue"][index % 5], email: record.clientEmail, phone: record.clientPhone,
           service: record.service, venue: record.venue, paymentMethod: record.paymentMethod, installments: record.installments,
         }));
-        if (imported.length) { setLeads(imported); setSelectedId(imported[0].id); }
+        if (imported.length) { setLeads(imported); setSelectedId(""); }
         setNotice(`${imported.length} registros privados carregados do staging.`);
       })
       .catch((error: Error) => setNotice(error.message));
@@ -104,19 +104,24 @@ export default function Page() {
       } satisfies Lead;
     });
     setLeads(sourceLeads);
-    setSelectedId(sourceLeads[0].id);
+    setSelectedId("");
     setNotice(`${sourceLeads.length} solicitações reais carregadas do banco principal do Studio Melk.`);
   }, [originalData.requests]);
 
   function advanceLead() {
+    if (!selected) return;
     const position = leadStages.indexOf(selected.stage);
     const nextStage = leadStages[Math.min(position + 1, leadStages.length - 1)];
-    setLeads((all) => all.map((lead) => lead.id === selected.id ? { ...lead, stage: nextStage, next: "Etapa atualizada agora" } : lead));
-    setNotice(`${selected.name} avançou para “${nextStage}” nesta demonstração.`);
+    void moveLead(selected.id, nextStage);
   }
-  function moveLead(id: string, stage: LeadStage) {
+  async function moveLead(id: string, stage: LeadStage) {
+    const lead = leads.find((item) => item.id === id);
     setLeads((all) => all.map((lead) => lead.id === id ? { ...lead, stage, next: `Movido manualmente para ${stage}` } : lead));
-    setNotice("Etapa atualizada manualmente no funil.");
+    setSelectedId("");
+    if (originalData.requests.some((request) => String(request.id) === id)) {
+      await originalData.patchDocument("solicitacoes", id, { status: stage, atualizadoEm: new Date().toISOString() });
+    }
+    setNotice(`${lead?.name || "Lead"} foi salvo em “${stage}”. O cartão foi fechado e continua disponível no funil.`);
   }
 
   return (
@@ -129,7 +134,7 @@ export default function Page() {
           </button>)}
         </nav>
         <div className="sidebar-bottom">
-          <div className="safe-note"><ShieldCheck size={16} /><span>Ambiente de desenvolvimento<br /><small>produção preservada</small></span></div>
+          <div className="safe-note"><ShieldCheck size={16} /><span>Studio Melk integrado<br /><small>versão principal</small></span></div>
           <button className="profile"><span className="avatar rose">MM</span><span>Márcio Melk<small>Administrador</small></span><ChevronRight size={16} /></button>
         </div>
       </aside>
@@ -165,20 +170,20 @@ export default function Page() {
             </div>
           </div>
 
-          <aside className="detail-panel" aria-label="Detalhe do lead selecionado">
+          {selected ? <aside className="detail-panel" aria-label="Detalhe do lead selecionado">
             <div className="detail-top"><span className={`avatar large ${selected.tone}`}>{selected.initials}</span><button className="icon-button small" aria-label="Mais opções">•••</button></div>
             <h2>{selected.name}</h2><p className="lead-id">{selected.id} · chegou por {selected.source}</p>
             <div className="stage-status"><span>Etapa atual</span><strong>{selected.stage}</strong></div>
             <dl><div><dt>Evento</dt><dd>{selected.event}</dd></div><div><dt>Data prevista</dt><dd>{selected.date}</dd></div><div><dt>Proposta</dt><dd>{selected.value}</dd></div><div><dt>Próxima ação</dt><dd>{selected.next}</dd></div></dl>
             <div className="timeline"><h3>Atividade recente</h3><p><span className="dot" />Lead criado a partir de {selected.source.toLowerCase()}<small>Hoje, 10:24</small></p><p><span className="dot muted" />Dados do evento organizados<small>Hoje, 10:25</small></p></div>
             <div className="detail-actions"><button className="outline-button" disabled={leadStages.indexOf(selected.stage) === 0} onClick={() => moveLead(selected.id, leadStages[Math.max(0, leadStages.indexOf(selected.stage) - 1)])}>Retroceder</button><button className="primary-button" onClick={advanceLead}>Avançar no funil <ChevronRight size={17} /></button></div>
-          </aside>
+          </aside> : <aside className="detail-panel detail-empty" aria-label="Nenhum lead selecionado"><UsersRound size={28} /><h2>Selecione um lead</h2><p>Clique em um cartão do funil para abrir os detalhes. Ao mudar a etapa, ele será salvo e esta área ficará limpa novamente.</p></aside>}
         </section>
 
         <section className="leads-table-section">
           <div className="section-heading"><div><h2>Leads recentes</h2><p>Base de trabalho da equipe comercial.</p></div><label className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar lead, evento ou origem" /></label></div>
           <div className="table-wrap"><table><thead><tr><th>Lead</th><th>Origem</th><th>Etapa</th><th>Evento</th><th>Próxima ação</th></tr></thead><tbody>
-            {filtered.map((lead) => <tr key={lead.id} onClick={() => setSelectedId(lead.id)} className={selected.id === lead.id ? "row-selected" : ""}><td><span className={`avatar table-avatar ${lead.tone}`}>{lead.initials}</span><strong>{lead.name}</strong></td><td>{lead.source}</td><td><span className="stage-pill">{lead.stage}</span></td><td>{lead.date}</td><td>{lead.next}<ChevronRight size={15} /></td></tr>)}
+            {filtered.map((lead) => <tr key={lead.id} onClick={() => setSelectedId(lead.id)} className={selected?.id === lead.id ? "row-selected" : ""}><td><span className={`avatar table-avatar ${lead.tone}`}>{lead.initials}</span><strong>{lead.name}</strong></td><td>{lead.source}</td><td><span className="stage-pill">{lead.stage}</span></td><td>{lead.date}</td><td>{lead.next}<ChevronRight size={15} /></td></tr>)}
           </tbody></table></div>
         </section>
         </> : activeView === "Importação" ? <ImportWorkspace setNotice={setNotice} onUnlock={setAccessKey} originalData={originalData} /> : <OperationsWorkspace view={activeView} setNotice={setNotice} leads={leads} originalData={originalData} />}
