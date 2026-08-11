@@ -12,7 +12,14 @@ type Payload = {
   event?: { title?: string; date?: string; time?: string; place?: string; mapsUrl?: string };
   commercial?: { service?: string; total?: number | string; installments?: number | string; dueDate?: string };
   contract?: { url?: string; signed?: boolean };
+  source?: { channel?: string; url?: string; format?: string; title?: string };
 };
+
+function normalizedDate(value: unknown) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : text;
+}
 
 async function token() {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
@@ -63,19 +70,20 @@ export async function POST(request: Request) {
     const clientId = `gerador-client-${payload.externalId}`;
     const eventId = `gerador-event-${payload.externalId}`;
     const total = Number(payload.commercial?.total || 0);
+    const eventDate = normalizedDate(payload.event?.date);
     const payments = paymentSchedule(payload.commercial?.installments, total, payload.commercial?.dueDate);
     const requestData = {
       // Contratos já entram confirmados: cliente + evento + agenda são criados
       // no mesmo envio. Propostas e formulários permanecem no funil comercial.
       status: payload.type === "contract" ? "Contratado" : "Pendente", tipoEvento: payload.event?.title || "Evento",
       dadosContratante: { nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "" },
-      dadosEvento: { data: payload.event?.date || "", horario: payload.event?.time || "", local: payload.event?.place || "" },
-      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), externalId: payload.externalId, tipoRecebido: payload.type, origem: payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site",
+      dadosEvento: { data: eventDate, horario: payload.event?.time || "", local: payload.event?.place || "" },
+      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), externalId: payload.externalId, tipoRecebido: payload.type, origem: payload.source?.title || (payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site"), sourceUrl: payload.source?.url || "", sourceChannel: payload.source?.channel || "Studio Melk Flow", sourceFormat: payload.source?.format || "aplicativo",
     };
     await write("solicitacoes", `gerador-${payload.externalId}`, requestData, auth);
     if (payload.type === "contract") {
       await write("clientes", clientId, { integrationId: payload.externalId, nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: payments }, auth);
-      await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: payload.event?.date || "", time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
+      await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: eventDate, time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
       await write("pedidos", `gerador-order-${payload.externalId}`, { integrationId: payload.externalId, clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
     }
     return NextResponse.json({ ok: true, imported: payload.type, externalId: payload.externalId, agendaCreated: payload.type === "contract", message: payload.type === "contract" ? "Contrato recebido: ficha, agenda e financeiro foram criados." : "Proposta recebida no funil comercial." });

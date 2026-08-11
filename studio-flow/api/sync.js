@@ -4,8 +4,13 @@
  * sent to, or embedded in, the browser.
  */
 module.exports = async (request, response) => {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Studio-Pair-Code");
+  response.setHeader("Cache-Control", "no-store");
+  if (request.method === "OPTIONS") return response.status(204).end();
   if (!["GET", "POST"].includes(request.method)) {
-    response.setHeader("Allow", "GET, POST");
+    response.setHeader("Allow", "GET, POST, OPTIONS");
     return response.status(405).json({ error: "Use POST." });
   }
 

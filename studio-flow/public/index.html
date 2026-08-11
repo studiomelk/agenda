@@ -8830,6 +8830,7 @@ function togglePropostaTextVisible(key, val) {
 }
 
 let propostaDebounce;
+const propostaIntegrationId = 'flow-proposal-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
 
 const PROPOSTA_TEMAS = {
  dourado: { fundo: '#faf6ef', destaque: '#ffffff', accent: '#8a6a4a', texto: '#2e2e2e' },
@@ -9034,6 +9035,9 @@ function getPropostaSlug() {
 
 function getPropostaData() {
  return {
+ integrationId: propostaIntegrationId,
+ syncUrl: location.origin + '/api/sync',
+ pairCode: localStorage.getItem('studio_melk_manager_pair_code') || 'Melk21',
  tipoProposta: propostaTipo,
  heroTitulo: document.getElementById('pp_heroTitulo').value.trim() || 'Transformando Histórias em Memórias Afetivas',
  heroSubtitulo: document.getElementById('pp_heroSubtitulo').value.trim() || 'Com anos de experiência, materializamos o sonho de vocês com excelência e sensibilidade.',
@@ -9207,7 +9211,7 @@ function generatePropostaHTML(d, editMode) {
  '<div id="modalConteudo"></div>' +
  '</div></div>' +
 
- '<script>' + getPropostaFunilScript(d.wa, d.emailNotificacao, d.estudioNome, d.camposExtras, d.dataCasamento, d.localCasamento, d.validadeOrcamento) + '<\/script>' +
+ '<script>' + getPropostaFunilScript(d.wa, d.emailNotificacao, d.estudioNome, d.camposExtras, d.dataCasamento, d.localCasamento, d.validadeOrcamento, d.syncUrl, d.pairCode, d.integrationId) + '<\/script>' +
  (editMode ? getPropostaClickToEditScript() : '') +
  '</body></html>';
 }
@@ -9266,7 +9270,7 @@ function getPropostaClickToEditScript() {
  '<\/script>';
 }
 
-function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposExtras, dataCasamento, localCasamento, validadeOrcamento) {
+function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposExtras, dataCasamento, localCasamento, validadeOrcamento, syncUrl, pairCode, integrationId) {
  return '' +
  'const SCRIPT_URL_PP = "' + SCRIPT_URL + '";' +
  'const WA_ESTUDIO = "' + (waNumero || '') + '";' +
@@ -9274,6 +9278,9 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'const ESTUDIO_NOME_PP = "' + (estudioNome || 'Studio Melk').replace(/"/g, '\\"') + '";' +
  'const CAMPOS_EXTRAS_PP = ' + JSON.stringify(camposExtras || []) + ';' +
  'const VALIDADE_PP = ' + JSON.stringify(validadeOrcamento || '') + ';' +
+ 'const STUDIO_SYNC_URL_PP = ' + JSON.stringify(syncUrl || '') + ';' +
+ 'const STUDIO_PAIR_CODE_PP = ' + JSON.stringify(pairCode || '') + ';' +
+ 'const STUDIO_EXTERNAL_ID_PP = ' + JSON.stringify(integrationId || '') + ';' +
  'let estado = { selFoto: null, selFilme: null, selAddons: [], step: 1, totalManual: null };' +
  'const contratante = { dataCasamento: "' + (dataCasamento || '').replace(/"/g, '\\"') + '", localCerimonia: "' + (localCasamento || '').replace(/"/g, '\\"') + '" };' +
  '' +
@@ -9373,7 +9380,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' \'<div class="modalNav"><button class="btnGhost" onclick="irEtapa(-1)">Voltar</button><button class="btnPrimary" onclick="irEtapa(1)">Próximo</button></div>\';' +
  ' } else if (estado.step === 4) {' +
  ' html = \'<h2>Informações do Casamento</h2><span class="stepLbl">Passo 4 de 5</span>\' +' +
- ' campo("Data do casamento","dataCasamento") + campo("Horário da cerimônia","horarioCerimonia") + campo("Local da cerimônia","localCerimonia") + campo("Local da festa","localFesta") +' +
+ ' campo("Data do casamento","dataCasamento","date") + campo("Horário da cerimônia","horarioCerimonia","time") + campo("Local da cerimônia","localCerimonia") + campo("Local da festa","localFesta") +' +
  ' \'<div class="modalNav"><button class="btnGhost" onclick="irEtapa(-1)">Voltar</button><button class="btnPrimary" onclick="irEtapa(1)">Próximo</button></div>\';' +
  ' } else if (estado.step === 5) {' +
  ' let extrasHtml = "";' +
@@ -9386,7 +9393,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' el.innerHTML = html;' +
  '}' +
  '' +
- 'function enviarProposta(){' +
+ 'async function enviarProposta(){' +
  ' coletarCamposEtapaAtual();' +
  ' const total = calcularTotal();' +
  ' let pacoteFotoNome = "-", pacoteFilmeNome = "-";' +
@@ -9491,6 +9498,19 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  '   }' +
  '  }, "*");' +
  ' } catch(e2) {}' +
+ '' +
+ ' let syncMessage = "";' +
+ ' try {' +
+ '  const serviceParts = [pacoteFotoNome !== "-" ? "Fotografia — " + pacoteFotoNome : "", pacoteFilmeNome !== "-" ? "Filmagem — " + pacoteFilmeNome : "", addonsNomes !== "-" ? "Adicionais — " + addonsNomes : ""].filter(Boolean);' +
+ '  const crmPayload = { type:"proposal", externalId:STUDIO_EXTERNAL_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, source:{channel:"link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Proposta recebida pelo link público do Studio Melk Flow"} };' +
+ '  const syncResponse = await fetch(STUDIO_SYNC_URL_PP,{method:"POST",headers:{"content-type":"application/json","x-studio-pair-code":STUDIO_PAIR_CODE_PP},body:JSON.stringify(crmPayload)});' +
+ '  const syncBody = await syncResponse.json().catch(function(){return {};});' +
+ '  if(!syncResponse.ok) throw new Error(syncBody.error||"O CRM recusou o envio.");' +
+ '  syncMessage = "✓ Proposta recebida no Studio Melk Flow.";' +
+ ' } catch(syncError) {' +
+ '  syncMessage = "A proposta será enviada pelo WhatsApp, mas não entrou no CRM: " + (syncError.message||"falha de conexão");' +
+ ' }' +
+ ' alert(syncMessage);' +
  '' +
  ' const destino = WA_ESTUDIO ? ("https://wa.me/" + WA_ESTUDIO + "?text=" + encodeURIComponent(msg)) : ("https://wa.me/?text=" + encodeURIComponent(msg));' +
  ' const lnk=document.createElement("a");lnk.href=destino;lnk.target="_blank";lnk.rel="noopener";document.body.appendChild(lnk);lnk.click();document.body.removeChild(lnk);' +
