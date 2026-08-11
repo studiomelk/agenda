@@ -10013,7 +10013,7 @@ function studioManagerPayload(type) {
     externalId: 'flow-' + Date.now(),
     client: { name: client.nome || eventName || 'Cliente', email: client.email || '', whatsapp: client.whatsapp || '' },
     event: { title: eventName, date: event.evData || proposal.dataCasamento || '', time: event.evHorarioCerimonia || event.evHorario || '', place: place, mapsUrl: event.evMapsFesta || event.evMapsCerimonia || (place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(event.evEnderecoFesta || event.evEnderecoCerimonia || place) : '') },
-    commercial: { service: service, total: total, installments: (document.getElementById('cfd_parcelas') || {}).value || '', dueDate: (document.getElementById('cfd_vencimento') || {}).value || '' },
+    commercial: { service: service, total: total || flowNumber((document.getElementById('pp_pmt_valor') || {}).value), installments: (document.getElementById('cfd_pagamento') || {}).value || (document.getElementById('pp_pmt_pagamento') || {}).value || '', dueDate: ((document.querySelector('#pmt_tbody input[type=date]') || document.querySelector('#pp_pmt_tbody input[type=date]')) || {}).value || '' },
     contract: { signed: false }
   };
 }

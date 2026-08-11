@@ -216,7 +216,7 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
   </section>;
 }
 
-type EventRecord = { id: string; clientId?: string; integrationId?: string; title: string; date: string; rawDate?: string; time: string; place: string; mapUrl?: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: { role: string; person: string; assignment?: string }[]; teamNotes?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
+type EventRecord = { id: string; clientId?: string; integrationId?: string; title: string; date: string; rawDate?: string; time: string; place: string; mapUrl?: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: { role: string; person: string; assignment?: string }[]; teamNotes?: string; reminders?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
 const events: EventRecord[] = [
   { id: "E-102", title: "Casamento · evento confirmado", date: "Sáb, 22 ago", time: "16:15", place: "Campinas, SP", status: "Confirmado", client: "Casal do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Foto e vídeo · dia completo", value: "R$ 8.400", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"}], contract:"Link do CRM", paid:"R$ 2.520", remaining:"R$ 5.880" },
   { id: "E-103", title: "Casamento · aguardando equipe", date: "Sáb, 12 set", time: "15:30", place: "Local confirmado", status: "Atenção", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(11) 99999-0000", project: "Cobertura de cerimônia e recepção", value: "R$ 10.800", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"},{role:"Edição",person:"A definir"}], contract:"PDF anexado", paid:"R$ 3.240", remaining:"R$ 7.560" },
@@ -278,7 +278,7 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
       email: String(client?.email || "E-mail não informado"), phone: String(client?.whatsapp || "Telefone não informado"),
       project: String(order?.servicos || event.services || "Projeto não informado"),
       value: totalValue ? `R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor não informado",
-      team: team.length ? team.map((member) => ({ role: String(member.role || "Equipe"), person: String(member.name || "A definir"), assignment: String(member.assignment || "Geral") })) : [{ role: "Equipe", person: "A definir", assignment: "Geral" }], teamNotes: String(event.teamNotes || ""),
+      team: team.length ? team.map((member) => ({ role: String(member.role || "Equipe"), person: String(member.name || "A definir"), assignment: String(member.assignment || "Geral") })) : [{ role: "Equipe", person: "A definir", assignment: "Geral" }], teamNotes: String(event.teamNotes || ""), reminders: String(event.reminders || ""),
       contract: event.contractUrl ? "PDF anexado" : order ? "Link do CRM" : "Pendente", contractUrl: String(event.contractUrl || ""), contractFileName: String(event.contractFileName || ""), contractSigned: Boolean(event.contractSigned), contractSignedAt: String(event.contractSignedAt || ""),
       paid: paidValue ? `R$ ${paidValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Não informado",
       remaining: totalValue ? `R$ ${Math.max(0, totalValue - paidValue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Não informado",
@@ -333,7 +333,7 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
       title: openEvent.title, date: openEvent.rawDate || "", time: openEvent.time,
       locCerimonia: openEvent.place, mapUrl: openEvent.mapUrl || "", services: openEvent.project,
       team: openEvent.team.map((member) => ({ name: member.person, role: member.role, assignment: member.assignment || "Geral" })),
-      teamNotes: openEvent.teamNotes || "", status: openEvent.status || "Confirmado",
+      teamNotes: openEvent.teamNotes || "", reminders: openEvent.reminders || "", status: openEvent.status || "Confirmado",
     });
     if (openEvent.clientId) {
       await originalData.patchDocument("clientes", openEvent.clientId, {

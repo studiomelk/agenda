@@ -34,6 +34,18 @@ function encode(value: unknown): Record<string, unknown> {
 
 function fields(data: Record<string, unknown>) { return Object.fromEntries(Object.entries(data).map(([key, item]) => [key, encode(item)])); }
 
+function paymentSchedule(text: unknown, total: number, dueDate?: unknown) {
+  const schedule = String(text || "").split("\n").map((line, index) => {
+    const match = line.match(/(\d+)ª:\s*(\d{2}\/\d{2}\/\d{4})\s*—\s*R\$\s*([\d.,]+)/);
+    if (!match) return null;
+    const [day, month, year] = match[2].split("/");
+    const value = Number(match[3].replace(/\./g, "").replace(",", ".")) || 0;
+    return { id: `parcela-${index + 1}`, parcela: Number(match[1]), valor: value, status: "Pendente", vencimento: `${year}-${month}-${day}` };
+  }).filter(Boolean);
+  if (schedule.length) return schedule;
+  return total ? [{ id: "parcela-1", parcela: 1, valor: total, status: "Pendente", vencimento: String(dueDate || "") }] : [];
+}
+
 async function write(collection: string, id: string, data: Record<string, unknown>, auth: string) {
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collection}/${encodeURIComponent(id)}`, {
     method: "PATCH", headers: { authorization: `Bearer ${auth}`, "content-type": "application/json" }, body: JSON.stringify({ fields: fields({ id, ...data }) }), cache: "no-store",
@@ -51,6 +63,7 @@ export async function POST(request: Request) {
     const clientId = `gerador-client-${payload.externalId}`;
     const eventId = `gerador-event-${payload.externalId}`;
     const total = Number(payload.commercial?.total || 0);
+    const payments = paymentSchedule(payload.commercial?.installments, total, payload.commercial?.dueDate);
     const requestData = {
       // Contratos já entram confirmados: cliente + evento + agenda são criados
       // no mesmo envio. Propostas e formulários permanecem no funil comercial.
@@ -61,7 +74,7 @@ export async function POST(request: Request) {
     };
     await write("solicitacoes", `gerador-${payload.externalId}`, requestData, auth);
     if (payload.type === "contract") {
-      await write("clientes", clientId, { integrationId: payload.externalId, nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: total ? [{ id: `entrada-${payload.externalId}`, parcela: 1, valor: total, status: "Pendente", vencimento: payload.commercial?.dueDate || "" }] : [] }, auth);
+      await write("clientes", clientId, { integrationId: payload.externalId, nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: payments }, auth);
       await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: payload.event?.date || "", time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
       await write("pedidos", `gerador-order-${payload.externalId}`, { integrationId: payload.externalId, clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
     }
