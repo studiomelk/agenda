@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const requestData = {
       // Contratos já entram confirmados: cliente + evento + agenda são criados
       // no mesmo envio. Propostas e formulários permanecem no funil comercial.
-      status: payload.type === "contract" ? "Contratado" : "Pendente", tipoEvento: payload.event?.title || "Evento",
+      status: payload.type === "contract" ? "Contratado" : payload.type === "proposal" ? "Proposta enviada" : "Pendente", tipoEvento: payload.event?.title || "Evento",
       dadosContratante: { nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "" },
       dadosEvento: { data: eventDate, horario: payload.event?.time || "", local: payload.event?.place || "" },
       dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), externalId: payload.externalId, tipoRecebido: payload.type, origem: payload.source?.title || (payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site"), sourceUrl: payload.source?.url || "", sourceChannel: payload.source?.channel || "Studio Melk Flow", sourceFormat: payload.source?.format || "aplicativo",

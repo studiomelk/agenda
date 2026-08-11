@@ -335,7 +335,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
  <p>v3.0</p>
 </div>
 
-<div class="shortcut-strip"><button type="button" class="ajustes-gerais-btn" onclick="openAjustesGerais()">🏢 Perfil da Empresa</button><button type="button" class="ajustes-gerais-btn" style="background:#2d6a4f;" onclick="openDadosCliente()">👤 Dados do Cliente</button><button type="button" class="ajustes-gerais-btn" style="background:#315d9b;" onclick="openProjectSaveModal()">💾 Salvar geral</button><button type="button" class="ajustes-gerais-btn" id="mobileModeToggle" style="background:#6a3fb5;" onclick="toggleMobileMode()">📱 Versão Mobile</button><button type="button" class="shortcut-toggle" onclick="toggleShortcutPopover()">Atalhos</button><div id="shortcutPopover" class="shortcut-popover"><strong>Atalhos rápidos</strong><br><span>A</span> aumentar tamanho · <span>D</span> diminuir · <span>S</span> trazer camada para frente · <span>Delete</span> apagar · <span>Ctrl/Cmd + Z</span> desfazer · <span>Cmd/Ctrl +</span> zoom · <span>Cmd/Ctrl -</span> afastar · <span>Cmd/Ctrl 0</span> resetar</div></div>
+<div class="shortcut-strip"><button type="button" class="ajustes-gerais-btn" onclick="openAjustesGerais()">🏢 Perfil da Empresa</button><button type="button" class="ajustes-gerais-btn" style="background:#2d6a4f;" onclick="openDadosCliente()">👤 Dados do Cliente</button><button type="button" class="ajustes-gerais-btn" style="background:#8a5d24;" onclick="openSentProposals()">⭐ Propostas enviadas</button><button type="button" class="ajustes-gerais-btn" style="background:#315d9b;" onclick="openProjectSaveModal()">💾 Salvar geral</button><button type="button" class="ajustes-gerais-btn" id="mobileModeToggle" style="background:#6a3fb5;" onclick="toggleMobileMode()">📱 Versão Mobile</button><button type="button" class="shortcut-toggle" onclick="toggleShortcutPopover()">Atalhos</button><div id="shortcutPopover" class="shortcut-popover"><strong>Atalhos rápidos</strong><br><span>A</span> aumentar tamanho · <span>D</span> diminuir · <span>S</span> trazer camada para frente · <span>Delete</span> apagar · <span>Ctrl/Cmd + Z</span> desfazer · <span>Cmd/Ctrl +</span> zoom · <span>Cmd/Ctrl -</span> afastar · <span>Cmd/Ctrl 0</span> resetar</div></div>
 
 <div id="mobileQuickBar">
  <button type="button" class="mqb-btn active" data-tab="web" style="--mqb-color:#2f6fed;" onclick="mobileQuickAccess('web')"><span class="mqb-ico">🌐</span><span class="mqb-label">Web</span></button>
@@ -9174,7 +9174,7 @@ function generatePropostaHTML(d, editMode) {
  '.modalBox{background:' + bg + ';border-radius:18px;max-width:460px;width:100%;padding:26px;position:relative;}' +
  '.modalBox h2{font-family:' + font + ';font-size:22px;margin-bottom:4px;}' +
  '.modalBox .stepLbl{font-size:11px;color:' + accent + ';text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px;display:block;}' +
- '.modalBox input, .modalBox textarea{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:10px;font-family:inherit;}' +
+ '.modalBox input, .modalBox textarea,.modalBox select{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:10px;font-family:inherit;background:#fff;}' +
  '.modalBox label.flabel{font-size:11px;color:' + text + ';opacity:.7;display:block;margin-bottom:4px;}' +
  '.modalClose{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:' + text + ';}' +
  '.modalNav{display:flex;justify-content:space-between;margin-top:18px;gap:10px;}' +
@@ -9281,7 +9281,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'const STUDIO_SYNC_URL_PP = ' + JSON.stringify(syncUrl || '') + ';' +
  'const STUDIO_PAIR_CODE_PP = ' + JSON.stringify(pairCode || '') + ';' +
  'const STUDIO_EXTERNAL_ID_PP = ' + JSON.stringify(integrationId || '') + ';' +
- 'let estado = { selFoto: null, selFilme: null, selAddons: [], step: 1, totalManual: null };' +
+ 'let estado = { selFoto: null, selFilme: null, selAddons: [], step: 1, totalManual: null, paymentCount: 1, paymentMethod: "Pix", paymentDates: [], paymentValues: [] };' +
  'const contratante = { dataCasamento: "' + (dataCasamento || '').replace(/"/g, '\\"') + '", localCerimonia: "' + (localCasamento || '').replace(/"/g, '\\"') + '" };' +
  '' +
  'function fmt(v){ return "R$ " + v.toFixed(2).replace(".", ","); }' +
@@ -9333,6 +9333,11 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' return \'<label class="flabel">\' + label + \'</label><input type="\' + tipo + \'" data-campo="\' + key + \'" value="\' + val.replace(/"/g,"&quot;") + \'">\';' +
  '}' +
  '' +
+ 'function dataBR(date){return String(date.getDate()).padStart(2,"0")+"/"+String(date.getMonth()+1).padStart(2,"0")+"/"+date.getFullYear();}' +
+ 'function campoDataHora(label,key,placeholder,maxlength){const val=contratante[key]||"";return \'<label class="flabel">\'+label+\'</label><input type="text" inputmode="numeric" maxlength="\'+maxlength+\'" placeholder="\'+placeholder+\'" data-campo="\'+key+\'" value="\'+String(val).replace(/"/g,"&quot;")+\'">\';}' +
+ 'function paymentScheduleText(){estado.paymentMethod=document.getElementById("paymentMethod")?.value||estado.paymentMethod;return "Forma: "+estado.paymentMethod+"\\n"+estado.paymentValues.map(function(value,index){return (index+1)+"ª: "+estado.paymentDates[index]+" — R$ "+Number(value||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}).join("\\n");}' +
+ 'function renderPaymentRows(){const box=document.getElementById("paymentRows");if(!box)return;const total=estado.totalManual!==null?estado.totalManual:calcularTotal();const count=Number(document.getElementById("paymentCount")?.value||1);estado.paymentCount=count;estado.paymentMethod=document.getElementById("paymentMethod")?.value||"Pix";const base=Math.floor((total/count)*100)/100;let remaining=total;const today=new Date();estado.paymentDates=Array.from({length:count},function(_,i){return estado.paymentDates[i]||dataBR(new Date(today.getFullYear(),today.getMonth()+i,today.getDate()));});estado.paymentValues=Array.from({length:count},function(_,i){const value=i===count-1?Math.round(remaining*100)/100:base;remaining-=value;return value;});box.innerHTML=estado.paymentValues.map(function(value,i){return \'<div style="display:grid;grid-template-columns:34px 1fr 1fr;gap:8px;align-items:center"><b style="font-size:12px">\'+(i+1)+\'ª</b><input aria-label="Vencimento \'+(i+1)+\'" placeholder="dd/mm/aaaa" value="\'+estado.paymentDates[i]+\'" onchange="estado.paymentDates[\'+i+\']=this.value"><input aria-label="Valor \'+(i+1)+\'" value="\'+Number(value).toFixed(2).replace(".",",")+\'" onchange="estado.paymentValues[\'+i+\']=Number(this.value.replace(/\\./g,\"\").replace(\",\",\".\"))||0"></div>\';}).join("");}' +
+ '' +
  'function campoCep(label, key, enderecoKey){' +
  ' const val = contratante[key] || "";' +
  ' return \'<label class="flabel">\' + label + \'</label><input type="text" data-campo="\' + key + \'" data-endereco-key="\' + enderecoKey + \'" maxlength="9" value="\' + val.replace(/"/g,"&quot;") + \'" oninput="buscarCepForm(this)"><span class="cepStatusForm" style="font-size:11px;display:block;margin:-4px 0 8px;"></span>\';' +
@@ -9380,21 +9385,21 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' \'<div class="modalNav"><button class="btnGhost" onclick="irEtapa(-1)">Voltar</button><button class="btnPrimary" onclick="irEtapa(1)">Próximo</button></div>\';' +
  ' } else if (estado.step === 4) {' +
  ' html = \'<h2>Informações do Casamento</h2><span class="stepLbl">Passo 4 de 5</span>\' +' +
- ' campo("Data do casamento","dataCasamento","date") + campo("Horário da cerimônia","horarioCerimonia","time") + campo("Local da cerimônia","localCerimonia") + campo("Local da festa","localFesta") +' +
+ ' campoDataHora("Data do casamento","dataCasamento","dd/mm/aaaa",10) + campoDataHora("Horário da cerimônia","horarioCerimonia","12:00",5) + campo("Local da cerimônia","localCerimonia") + campo("Local da festa","localFesta") +' +
  ' \'<div class="modalNav"><button class="btnGhost" onclick="irEtapa(-1)">Voltar</button><button class="btnPrimary" onclick="irEtapa(1)">Próximo</button></div>\';' +
  ' } else if (estado.step === 5) {' +
  ' let extrasHtml = "";' +
  ' CAMPOS_EXTRAS_PP.forEach(function(c){ extrasHtml += campo(c.label, c.key); });' +
- ' html = \'<h2>Revisão final</h2><span class="stepLbl">Passo 5 de 5</span>\' + extrasHtml +' +
- ' \'<label class="flabel">Forma de pagamento / parcelas</label><textarea data-campo="parcelasObs" rows="3" style="font-family:inherit;font-size:13px;">\' + (contratante.parcelasObs||"") + \'</textarea><p style="font-size:11px;color:#aaa;margin:-6px 0 12px;">Ex: 50% sinal (R$ 2.600,00) + saldo em 30 dias — Pix ou transferência</p>\' +' +
+ ' html = \'<h2>Pagamento</h2><span class="stepLbl">Passo 5 de 5</span><p style="font-size:11px;color:#8c7a68;margin-bottom:12px">Datas em dd/mm/aaaa e horário em 24 horas, como 12:00.</p>\' + extrasHtml +' +
+ ' \'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label class="flabel">Valor total<input value="\'+fmt(estado.totalManual!==null?estado.totalManual:calcularTotal())+\'" readonly></label><label class="flabel">Número de parcelas<select id="paymentCount" onchange="renderPaymentRows()">\'+Array.from({length:20},function(_,i){return \'<option value="\'+(i+1)+\'">\'+(i+1)+\'x</option>\';}).join(\'\')+\'</select></label></div><label class="flabel">Forma de pagamento<select id="paymentMethod"><option>Pix</option><option>Dinheiro</option><option>Transferência</option><option>Cartão</option><option>Boleto</option></select></label><div id="paymentRows" style="background:#f3f0eb;border-radius:12px;padding:12px;margin-bottom:12px"></div>\' +' +
  ' \'<label class="flabel">O que mais gostou no nosso trabalho?</label><textarea data-campo="observacoes" rows="3">\' + (contratante.observacoes||"") + \'</textarea>\' +' +
  ' \'<div class="modalNav"><button class="btnGhost" onclick="irEtapa(-1)">Voltar</button><button class="btnPrimary" onclick="enviarProposta()">📤 Enviar (WhatsApp + E-mail)</button></div>\';' +
  ' }' +
- ' el.innerHTML = html;' +
+ ' el.innerHTML = html;if(estado.step===5)setTimeout(renderPaymentRows,0);' +
  '}' +
  '' +
  'async function enviarProposta(){' +
- ' coletarCamposEtapaAtual();' +
+ ' coletarCamposEtapaAtual();if(estado.step===5)contratante.parcelasObs=paymentScheduleText();' +
  ' const total = calcularTotal();' +
  ' let pacoteFotoNome = "-", pacoteFilmeNome = "-";' +
  ' let pacoteFotoPreco = 0, pacoteFilmePreco = 0, pacoteFotoFeatures = "", pacoteFilmeFeatures = "";' +
@@ -9502,11 +9507,11 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' let syncMessage = "";' +
  ' try {' +
  '  const serviceParts = [pacoteFotoNome !== "-" ? "Fotografia — " + pacoteFotoNome : "", pacoteFilmeNome !== "-" ? "Filmagem — " + pacoteFilmeNome : "", addonsNomes !== "-" ? "Adicionais — " + addonsNomes : ""].filter(Boolean);' +
- '  const crmPayload = { type:"proposal", externalId:STUDIO_EXTERNAL_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, source:{channel:"link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Proposta recebida pelo link público do Studio Melk Flow"} };' +
+ '  const crmPayload = { type:"contract", externalId:STUDIO_EXTERNAL_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, contract:{url:location.href,signed:false}, source:{channel:"resposta-link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Contrato originado pela resposta da proposta"} };' +
  '  const syncResponse = await fetch(STUDIO_SYNC_URL_PP,{method:"POST",headers:{"content-type":"application/json","x-studio-pair-code":STUDIO_PAIR_CODE_PP},body:JSON.stringify(crmPayload)});' +
  '  const syncBody = await syncResponse.json().catch(function(){return {};});' +
  '  if(!syncResponse.ok) throw new Error(syncBody.error||"O CRM recusou o envio.");' +
- '  syncMessage = "✓ Proposta recebida no Studio Melk Flow.";' +
+ '  syncMessage = "✓ Contrato recebido. Agenda e financeiro foram criados no Studio Melk Flow.";' +
  ' } catch(syncError) {' +
  '  syncMessage = "A proposta será enviada pelo WhatsApp, mas não entrou no CRM: " + (syncError.message||"falha de conexão");' +
  ' }' +
@@ -9520,13 +9525,14 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'calcularTotal();';
 }
 
-function downloadPropostaHTML() {
+async function downloadPropostaHTML() {
  const d = getPropostaData();
  const html = generatePropostaHTML(d);
  const a = document.createElement('a');
  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
  a.download = getPropostaSlug() + '.html';
  a.click();
+ await registerGeneratedProposal(d, '', 'html-baixado');
 }
 
 function copyPropostaHTML() {
@@ -9539,13 +9545,14 @@ function copyPropostaHTML() {
  }).catch(() => alert('Não foi possível copiar. Use "Baixar HTML".'));
 }
 
-function printPropostaPDF() {
+async function printPropostaPDF() {
  const d = getPropostaData();
  const html = generatePropostaHTML(d);
  const win = window.open('', '_blank');
  if (!win) { alert('O navegador bloqueou a nova aba. Permita pop-ups pra esta página e tente de novo.'); return; }
  win.document.write(html);
  win.document.close();
+ await registerGeneratedProposal(d, '', 'pdf-impresso');
  setTimeout(function() { win.focus(); win.print(); }, 400);
 }
 
@@ -9639,10 +9646,48 @@ async function publishProposta(){
   const url=await cfPublish(html,slug);
   statusEl.textContent='✓ Publicado!';
   linkEl.href=url;linkEl.textContent=url;linkEl.style.display='block';
+  await registerGeneratedProposal(d,url,'link-publicado');
  }catch(e){
   statusEl.textContent='✗ '+e.message;
   if(e.message==='Unauthorized'||e.message.includes('401')||e.message==='CF_NOT_CONFIGURED'){localStorage.removeItem('cfApiSecret');statusEl.textContent='✗ Senha incorreta — clique em Publicar para tentar novamente';}
  }
+}
+
+const SENT_PROPOSALS_KEY='studio_melk_sent_proposals_v1';
+function sentProposals(){try{return JSON.parse(localStorage.getItem(SENT_PROPOSALS_KEY)||'[]');}catch(e){return [];}}
+function proposalOwner(d){return (d.nomeCasal||'').replace(/^Queridos\s+/i,'').replace(/[,!]+$/g,'').trim()||'Cliente a confirmar';}
+function saveSentProposal(d,url,format){
+ const list=sentProposals();
+ const item={id:d.integrationId,name:proposalOwner(d),eventDate:d.dataCasamento||'',createdAt:new Date().toISOString(),url:url||'',format:format,featured:false};
+ const previous=list.find(function(entry){return entry.id===item.id;});
+ if(previous)item.featured=!!previous.featured;
+ const next=[item].concat(list.filter(function(entry){return entry.id!==item.id;})).slice(0,100);
+ localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(next));
+}
+async function registerGeneratedProposal(d,url,format){
+ saveSentProposal(d,url,format);
+ const total=flowNumber((document.getElementById('pp_pmt_valor')||{}).value);
+ const service=[d.ativoFoto?'Fotografia':'',d.ativoFilme?'Filmagem':'',d.ativoAddons?'Adicionais':''].filter(Boolean).join(' + ')||d.heroTitulo||'Proposta Studio Melk';
+ const payload={type:'proposal',externalId:d.integrationId,client:{name:proposalOwner(d),email:'',whatsapp:''},event:{title:proposalOwner(d),date:d.dataCasamento||'',time:'',place:d.localCasamento||''},commercial:{service:service,total:total,installments:(document.getElementById('pp_pmt_pagamento')||{}).value||''},source:{channel:'gerador',url:url||'',format:format,title:'Proposta gerada no Studio Melk Flow'}};
+ try{
+  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':d.pairCode||'Melk21'},body:JSON.stringify(payload)});
+  const body=await response.json().catch(function(){return {};});
+  if(!response.ok)throw new Error(body.error||'Não foi possível registrar no funil.');
+  if(typeof showBizToast==='function')showBizToast('✓ Proposta registrada no funil.');
+ }catch(error){if(typeof showBizToast==='function')showBizToast('Link criado; revise a conexão do CRM.');}
+}
+function toggleSentProposalFeatured(id){
+ const list=sentProposals();const item=list.find(function(entry){return entry.id===id;});if(!item)return;
+ if(!item.featured&&list.filter(function(entry){return entry.featured;}).length>=6){alert('Você pode deixar até 6 propostas em destaque.');return;}
+ item.featured=!item.featured;localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(list));renderSentProposals();
+}
+function removeSentProposal(id){localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(sentProposals().filter(function(entry){return entry.id!==id;})));renderSentProposals();}
+function renderSentProposals(){
+ const box=document.getElementById('sentProposalsList');if(!box)return;const list=sentProposals().sort(function(a,b){return Number(!!b.featured)-Number(!!a.featured)||String(b.createdAt).localeCompare(String(a.createdAt));});
+ box.innerHTML=list.length?list.map(function(item){const created=new Date(item.createdAt).toLocaleDateString('pt-BR');return '<article style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:8px 0;background:'+(item.featured?'#fff8df':'#fff')+'"><strong style="display:block">'+escapeHTML(item.name)+'</strong><small>'+escapeHTML(item.eventDate||'Data a confirmar')+' · gerada em '+created+' · '+escapeHTML(item.format)+'</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">'+(item.url?'<a class="btn-secondary" style="text-decoration:none" target="_blank" href="'+encodeURI(item.url)+'">Abrir link</a>':'')+'<button class="btn-secondary" onclick="toggleSentProposalFeatured(\''+item.id+'\')">'+(item.featured?'Remover destaque':'Destacar')+'</button><button class="btn-secondary" onclick="removeSentProposal(\''+item.id+'\')">Remover da lista</button></div></article>';}).join(''):'<p style="color:#777">Nenhuma proposta gerada neste aparelho ainda.</p>';
+}
+function openSentProposals(){
+ let modal=document.getElementById('sentProposalsModal');if(!modal){modal=document.createElement('div');modal.id='sentProposalsModal';modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';modal.innerHTML='<section style="background:#f8f7f3;border-radius:18px;padding:22px;width:min(680px,100%);max-height:85vh;overflow:auto"><div style="display:flex;justify-content:space-between;gap:12px"><div><h2>Propostas enviadas</h2><p style="color:#666;font-size:13px">Links, HTMLs e PDFs gerados. Até 6 podem ficar em destaque.</p></div><button class="btn-secondary" onclick="document.getElementById(\'sentProposalsModal\').style.display=\'none\'">Fechar</button></div><div id="sentProposalsList"></div></section>';document.body.appendChild(modal);}else modal.style.display='flex';renderSentProposals();
 }
 
 async function publishBiz(){
