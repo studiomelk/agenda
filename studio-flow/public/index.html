@@ -2218,12 +2218,30 @@ function pmtGerarParcelas() {
         <td style="padding:5px 6px;white-space:nowrap;color:#555;">${i+1}ª</td>
         <td style="padding:5px 4px;"><input type="date" value="${dtISO}" onchange="pmtAtualizarTotal()"
           style="border:1px solid #ddd;border-radius:6px;padding:5px 6px;font-size:12px;width:130px;"></td>
-        <td style="padding:5px 4px;text-align:right;"><input type="number" step="0.01" min="0" value="${val}"
-          onchange="pmtAtualizarTotal()" oninput="pmtAtualizarTotal()"
+        <td style="padding:5px 4px;text-align:right;"><input type="number" step="0.01" min="0" value="${val}" ${i === n - 1 ? 'readonly' : ''}
+          onchange="pmtAjustarUltima(${i})" oninput="pmtAjustarUltima(${i})"
           style="border:1px solid #ddd;border-radius:6px;padding:5px 6px;font-size:12px;width:90px;text-align:right;"></td>
       </tr>`
     );
   }
+  pmtAtualizarTotal();
+}
+
+function pmtAjustarUltima(indiceAlterado) {
+  const inputs = Array.from(document.querySelectorAll('#pmt_tbody input[type=number]'));
+  if (!inputs.length) return;
+  const rawVal = (document.getElementById('cfd_valor')||{}).value || '0';
+  const total = Math.round((parseFloat(rawVal.replace(/\./g,'').replace(',','.')) || 0) * 100) / 100;
+  const ultima = inputs[inputs.length - 1];
+  const anteriores = inputs.slice(0, -1);
+  let somaSemAlterada = anteriores.reduce((soma, input, i) => soma + (i === indiceAlterado ? 0 : (parseFloat(input.value)||0)), 0);
+  if (indiceAlterado < anteriores.length) {
+    const maximo = Math.max(0, total - somaSemAlterada);
+    const atual = Math.max(0, parseFloat(anteriores[indiceAlterado].value)||0);
+    anteriores[indiceAlterado].value = Math.min(atual, maximo).toFixed(2);
+  }
+  const somaAnteriores = anteriores.reduce((soma, input) => soma + (parseFloat(input.value)||0), 0);
+  ultima.value = Math.max(0, Math.round((total - somaAnteriores) * 100) / 100).toFixed(2);
   pmtAtualizarTotal();
 }
 
@@ -2278,12 +2296,30 @@ function ppPmtGerarParcelas() {
         <td style="padding:5px 6px;white-space:nowrap;color:#555;">${i+1}ª</td>
         <td style="padding:5px 4px;"><input type="date" value="${dtISO}" onchange="ppPmtAtualizarTotal()"
           style="border:1px solid #ddd;border-radius:6px;padding:5px 6px;font-size:12px;width:130px;"></td>
-        <td style="padding:5px 4px;text-align:right;"><input type="number" step="0.01" min="0" value="${val}"
-          onchange="ppPmtAtualizarTotal()" oninput="ppPmtAtualizarTotal()"
+        <td style="padding:5px 4px;text-align:right;"><input type="number" step="0.01" min="0" value="${val}" ${i === n - 1 ? 'readonly' : ''}
+          onchange="ppPmtAjustarUltima(${i})" oninput="ppPmtAjustarUltima(${i})"
           style="border:1px solid #ddd;border-radius:6px;padding:5px 6px;font-size:12px;width:90px;text-align:right;"></td>
       </tr>`
     );
   }
+  ppPmtAtualizarTotal();
+}
+
+function ppPmtAjustarUltima(indiceAlterado) {
+  const inputs = Array.from(document.querySelectorAll('#pp_pmt_tbody input[type=number]'));
+  if (!inputs.length) return;
+  const rawVal = (document.getElementById('pp_pmt_valor')||{}).value || '0';
+  const total = Math.round((parseFloat(rawVal.replace(/\./g,'').replace(',','.')) || 0) * 100) / 100;
+  const ultima = inputs[inputs.length - 1];
+  const anteriores = inputs.slice(0, -1);
+  const somaSemAlterada = anteriores.reduce((soma, input, i) => soma + (i === indiceAlterado ? 0 : (parseFloat(input.value)||0)), 0);
+  if (indiceAlterado < anteriores.length) {
+    const maximo = Math.max(0, total - somaSemAlterada);
+    const atual = Math.max(0, parseFloat(anteriores[indiceAlterado].value)||0);
+    anteriores[indiceAlterado].value = Math.min(atual, maximo).toFixed(2);
+  }
+  const somaAnteriores = anteriores.reduce((soma, input) => soma + (parseFloat(input.value)||0), 0);
+  ultima.value = Math.max(0, Math.round((total - somaAnteriores) * 100) / 100).toFixed(2);
   ppPmtAtualizarTotal();
 }
 
@@ -9347,7 +9383,8 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'function dataBR(date){return String(date.getDate()).padStart(2,"0")+"/"+String(date.getMonth()+1).padStart(2,"0")+"/"+String(date.getFullYear()).slice(-2);}' +
  'function campoDataHora(label,key,placeholder,maxlength){const val=contratante[key]||"";return \'<label class="flabel">\'+label+\'</label><input type="text" inputmode="numeric" maxlength="\'+maxlength+\'" placeholder="\'+placeholder+\'" data-campo="\'+key+\'" value="\'+String(val).replace(/"/g,"&quot;")+\'">\';}' +
  'function paymentScheduleText(){estado.paymentMethod=document.getElementById("paymentMethod")?.value||estado.paymentMethod;return "Forma: "+estado.paymentMethod+"\\n"+estado.paymentValues.map(function(value,index){return (index+1)+"ª: "+estado.paymentDates[index]+" — R$ "+Number(value||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}).join("\\n");}' +
- 'function renderPaymentRows(){const box=document.getElementById("paymentRows");if(!box)return;const total=estado.totalManual!==null?estado.totalManual:calcularTotal();const count=Number(document.getElementById("paymentCount")?.value||1);estado.paymentCount=count;estado.paymentMethod=document.getElementById("paymentMethod")?.value||"Pix";const base=Math.floor((total/count)*100)/100;let remaining=total;const today=new Date();estado.paymentDates=Array.from({length:count},function(_,i){return estado.paymentDates[i]||dataBR(new Date(today.getFullYear(),today.getMonth()+i,today.getDate()));});estado.paymentValues=Array.from({length:count},function(_,i){const value=i===count-1?Math.round(remaining*100)/100:base;remaining-=value;return value;});box.innerHTML=estado.paymentValues.map(function(value,i){return \'<div style="display:grid;grid-template-columns:34px 1fr 1fr;gap:8px;align-items:center"><b style="font-size:12px">\'+(i+1)+\'ª</b><input aria-label="Vencimento \'+(i+1)+\'" placeholder="dd/mm/aa" maxlength="8" value="\'+estado.paymentDates[i]+\'" onchange="estado.paymentDates[\'+i+\']=this.value"><input aria-label="Valor \'+(i+1)+\'" value="\'+Number(value).toFixed(2).replace(".",",")+\'" onchange="estado.paymentValues[\'+i+\']=Number(this.value.replace(/\\./g,\"\").replace(\",\",\".\"))||0"></div>\';}).join("");}' +
+ 'function ajustarUltimaParcela(index,input){const total=estado.totalManual!==null?estado.totalManual:calcularTotal();const count=estado.paymentValues.length;const atual=Math.max(0,Number(String(input.value).replace(/\\./g,\"\").replace(\",\",\".\"))||0);const outros=estado.paymentValues.slice(0,-1).reduce(function(soma,value,i){return soma+(i===index?0:Number(value||0));},0);estado.paymentValues[index]=Math.min(atual,Math.max(0,total-outros));const somaAnteriores=estado.paymentValues.slice(0,-1).reduce(function(soma,value){return soma+Number(value||0);},0);estado.paymentValues[count-1]=Math.max(0,Math.round((total-somaAnteriores)*100)/100);const campos=document.querySelectorAll("#paymentRows input[aria-label^=Valor]");campos[index].value=Number(estado.paymentValues[index]).toFixed(2).replace(".",",");campos[count-1].value=Number(estado.paymentValues[count-1]).toFixed(2).replace(".",",");}' +
+ 'function renderPaymentRows(){const box=document.getElementById("paymentRows");if(!box)return;const total=estado.totalManual!==null?estado.totalManual:calcularTotal();const count=Number(document.getElementById("paymentCount")?.value||1);estado.paymentCount=count;estado.paymentMethod=document.getElementById("paymentMethod")?.value||"Pix";const base=Math.floor((total/count)*100)/100;let remaining=total;const today=new Date();estado.paymentDates=Array.from({length:count},function(_,i){return estado.paymentDates[i]||dataBR(new Date(today.getFullYear(),today.getMonth()+i,today.getDate()));});estado.paymentValues=Array.from({length:count},function(_,i){const value=i===count-1?Math.round(remaining*100)/100:base;remaining-=value;return value;});box.innerHTML=estado.paymentValues.map(function(value,i){const isLast=i===count-1;return \'<div style="display:grid;grid-template-columns:34px 1fr 1fr;gap:8px;align-items:center"><b style="font-size:12px">\'+(i+1)+\'ª</b><input aria-label="Vencimento \'+(i+1)+\'" placeholder="dd/mm/aa" maxlength="8" value="\'+estado.paymentDates[i]+\'" onchange="estado.paymentDates[\'+i+\']=this.value"><input aria-label="Valor \'+(i+1)+\'" value="\'+Number(value).toFixed(2).replace(".",",")+\'" \'+(isLast?\'readonly title="Ajustada automaticamente para fechar o total"\':\'oninput="ajustarUltimaParcela(\'+i+\',this)" onchange="ajustarUltimaParcela(\'+i+\',this)"\')+\'></div>\';}).join("");}' +
  '' +
  'function campoCep(label, key, enderecoKey){' +
  ' const val = contratante[key] || "";' +
@@ -9526,9 +9563,10 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' } catch(syncError) {' +
  '  syncMessage = "A proposta será enviada pelo WhatsApp, mas não entrou no CRM: " + (syncError.message||"falha de conexão");' +
  ' }' +
- ' alert(syncMessage);' +
+ ' console.info(syncMessage);' +
  '' +
- ' const destino = WA_ESTUDIO ? ("https://wa.me/" + WA_ESTUDIO + "?text=" + encodeURIComponent(msg)) : ("https://wa.me/?text=" + encodeURIComponent(msg));' +
+ ' const whatsappCliente = String(contratante.contratanteWhats||"").replace(/\\D/g,"");' +
+ ' const destino = whatsappCliente ? ("https://wa.me/" + (whatsappCliente.startsWith("55")?whatsappCliente:("55"+whatsappCliente)) + "?text=" + encodeURIComponent(msg)) : ("https://wa.me/?text=" + encodeURIComponent(msg));' +
  ' const lnk=document.createElement("a");lnk.href=destino;lnk.target="_blank";lnk.rel="noopener";document.body.appendChild(lnk);lnk.click();document.body.removeChild(lnk);' +
  '}' +
  '' +
