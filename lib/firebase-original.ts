@@ -182,14 +182,15 @@ export function useOriginalStudioData() {
 
   const uploadContract = async (file: File, eventId: string) => {
     if (!token) throw new Error("Banco ainda não conectado.");
-    if (file.type !== "application/pdf") throw new Error("Selecione um arquivo PDF.");
-    if (file.size > 15 * 1024 * 1024) throw new Error("O PDF deve ter no máximo 15 MB.");
+    const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (!allowed.includes(file.type)) throw new Error("Selecione um contrato em PDF, DOC ou DOCX.");
+    if (file.size > 15 * 1024 * 1024) throw new Error("O contrato deve ter no máximo 15 MB.");
     const objectName = `contracts/${eventId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
     const buckets = [`${firebaseConfig.projectId}.firebasestorage.app`, `${firebaseConfig.projectId}.appspot.com`];
     let lastError = "Armazenamento de contratos não disponível.";
     for (const bucket of buckets) {
       const response = await fetch(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=media&name=${encodeURIComponent(objectName)}`, {
-        method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/pdf" }, body: file,
+        method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": file.type }, body: file,
       });
       const result = await response.json() as { name?: string; downloadTokens?: string; error?: { message?: string } };
       if (!response.ok || !result.name) { lastError = result.error?.message || lastError; continue; }
