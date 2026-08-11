@@ -479,23 +479,3 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const receivedProposals = flowRequests.filter((request) => request.status !== "Lixeira" && String(request.tipoRecebido || "proposal") !== "contract");
   return <section className="orders-layout"><div className="section-heading"><div><h2>Propostas · Recebidas</h2><p>Respostas recebidas por link publicado, HTML baixado ou envio direto do Flow.</p></div><button className="primary-button" onClick={() => setNotice("Novo documento preparado para o fluxo do Gerador.")}><Plus size={17} /> Criar proposta</button></div><div className="document-flow"><article><FileText size={23} /><h3>1. Proposta</h3><p>Cliente escolhe itens no Gerador.</p></article><ChevronRight /><article><ClipboardList size={23} /><h3>2. Recebida</h3><p>A origem e os dados ficam registrados.</p></article><ChevronRight /><article><ReceiptText size={23} /><h3>3. Contrato</h3><p>Ao virar contrato, cria agenda e financeiro.</p></article></div><div className="contract-directory">{receivedProposals.length ? receivedProposals.map((request) => { const contractor = (request.dadosContratante || {}) as Record<string, unknown>; const commercial = (request.dadosComerciais || {}) as Record<string, unknown>; const sourceUrl = String(request.sourceUrl || ""); return <article key={String(request.id)} className="contract-row"><div><strong>{String(contractor.nome || "Cliente")}</strong><span>{String(request.tipoEvento || "Evento")} · {String((request.dadosEvento as Record<string, unknown> | undefined)?.data || "Data a confirmar")}</span><small>{String(commercial.servico || "Serviço a confirmar")}</small></div><div><span className="stage-pill">{String(request.sourceFormat || "Recebida do Flow")}</span><small>{String(request.origem || "Studio Melk Flow")}</small><b>{Number(commercial.valorTotal || 0) ? `R$ ${Number(commercial.valorTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor a confirmar"}</b></div>{sourceUrl && <a className="outline-button" href={sourceUrl} target="_blank" rel="noreferrer">Origem <ExternalLink size={15} /></a>}<button className="outline-button" disabled={originalData.saving} onClick={() => void moveFlowRequestToTrash(request as Record<string, unknown>)}><Trash2 size={15} /> Lixeira</button></article>; }) : <div className="availability-note"><FileText size={18} /><span>As propostas enviadas pelo Flow aparecerão aqui.</span></div>}</div></section>;
 }
- ✓ Generating static pages (5/5)
-   Finalizing page optimization ...
-   Collecting build traces ...
-
-Route (app)                                 Size  First Load JS
-┌ ○ /                                    18.3 kB         121 kB
-├ ○ /_not-found                            990 B         104 kB
-├ ƒ /api/integrations/gerador              134 B         103 kB
-├ ƒ /api/lead-intake                       134 B         103 kB
-├ ƒ /api/staging/inventory                 134 B         103 kB
-└ ƒ /api/staging/solicitacoes              134 B         103 kB
-+ First Load JS shared by all             103 kB
-  ├ chunks/255-87552e6e05b8e3aa.js       46.4 kB
-  ├ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
-  └ other shared chunks (total)           1.9 kB
-
-
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
-
