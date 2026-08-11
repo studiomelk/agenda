@@ -53,7 +53,7 @@ export default function Page() {
   const [activeView, setActiveView] = useState("Visão geral");
   const [selectedId, setSelectedId] = useState("");
   const [accessKey, setAccessKey] = useState("");
-  const [notice, setNotice] = useState("A integração do Gerador será recebida aqui, sem gravar no banco atual.");
+  const [notice, setNotice] = useState("Studio Melk Flow conectado. Novos dados entram automaticamente.");
   const selected = leads.find((lead) => lead.id === selectedId);
   const filtered = useMemo(() => leads.filter((lead) =>
     `${lead.name} ${lead.event} ${lead.source}`.toLowerCase().includes(query.toLowerCase())), [leads, query]);
