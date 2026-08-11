@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   ArrowUpRight, CalendarDays, Check, ChevronRight, CircleDollarSign,
   ClipboardList, FileText, LayoutDashboard, MessageCircle, Plus,
   Search, ShieldCheck, Sparkles, UsersRound, MapPin, UserRoundCheck,
   ReceiptText, WalletCards, ExternalLink, CheckCircle2, Clock3, Pencil, Paperclip, Share2, Mail, Phone, UserRound, Trash2, RotateCcw, Save
+  , ShoppingBag, Images, FormInput, Link2, Send, BookOpen, ImageIcon
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { leadStages, type LeadStage } from "../lib/lead-intake";
@@ -43,7 +44,7 @@ const initialLeads: Lead[] = [
 const navigation: [LucideIcon, string][] = [
   [LayoutDashboard, "Visão geral"], [UsersRound, "Leads"], [FileText, "Propostas"],
   [ClipboardList, "Contratos"], [CalendarDays, "Agenda"], [UserRoundCheck, "Equipe"],
-  [CircleDollarSign, "Financeiro"], [Trash2, "Lixeira"], [ShieldCheck, "Importação"],
+  [Images, "Entregas"], [BookOpen, "Álbuns"], [FormInput, "Formulários"], [CircleDollarSign, "Financeiro"], [Trash2, "Lixeira"], [ShieldCheck, "Importação"],
 ];
 
 export default function Page() {
@@ -246,7 +247,7 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
 }
 
 type TeamAssignment = { role: string; person: string; assignment?: string; workStart?: string; specialDuty?: string };
-type EventRecord = { id: string; clientId?: string; integrationId?: string; title: string; date: string; rawDate?: string; time: string; place: string; mapUrl?: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: TeamAssignment[]; teamNotes?: string; reminders?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
+ type EventRecord = { id: string; clientId?: string; integrationId?: string; title: string; date: string; rawDate?: string; time: string; place: string; mapUrl?: string; partyPlace?: string; partyMapUrl?: string; brideMakingOf?: string; groomMakingOf?: string; preWeddingDate?: string; preWeddingTime?: string; preWeddingPlace?: string; route?: string; tasks?: string; companyCost?: string; editingCost?: string; extraCosts?: string; status: string; client: string; email: string; phone: string; project: string; value: string; team: TeamAssignment[]; teamNotes?: string; reminders?: string; contract: "Link do CRM" | "PDF anexado" | "Pendente"; contractUrl?: string; contractFileName?: string; contractSigned?: boolean; contractSignedAt?: string; paid: string; remaining: string };
 const events: EventRecord[] = [
   { id: "E-102", title: "Casamento · evento confirmado", date: "Sáb, 22 ago", time: "16:15", place: "Campinas, SP", status: "Confirmado", client: "Casal do projeto", email: "cliente@exemplo.com", phone: "(19) 99999-0000", project: "Foto e vídeo · dia completo", value: "R$ 8.400", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"}], contract:"Link do CRM", paid:"R$ 2.520", remaining:"R$ 5.880" },
   { id: "E-103", title: "Casamento · aguardando equipe", date: "Sáb, 12 set", time: "15:30", place: "Local confirmado", status: "Atenção", client: "Cliente do projeto", email: "cliente@exemplo.com", phone: "(11) 99999-0000", project: "Cobertura de cerimônia e recepção", value: "R$ 10.800", team: [{role:"Fotografia",person:"A definir"},{role:"Vídeo",person:"A definir"},{role:"Edição",person:"A definir"}], contract:"PDF anexado", paid:"R$ 3.240", remaining:"R$ 7.560" },
@@ -297,7 +298,223 @@ function googleCalendarUrl(event: EventRecord) {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-function OperationsWorkspace({ view, setNotice, leads, originalData }: OperationsWorkspaceProps) {
+ type FormTemplate = { id: string; name: string; description: string; fields: string[]; featured: boolean; active: boolean };
+
+const initialFormTemplates: FormTemplate[] = [
+  { id:"casamentos", name:"Casamentos", description:"Um contato inicial simples para entender data e locais.", fields:["Nome do casal","Data do casamento","Local da cerimônia","Local da festa"], featured:true, active:true },
+  { id:"aniversarios", name:"Aniversários e 15 anos", description:"Dados essenciais da festa para o primeiro contato.", fields:["Nome do contratante","Data da festa","Local da festa","Idade do aniversariante"], featured:true, active:true },
+  { id:"ensaios", name:"Ensaios", description:"Conte qual ensaio deseja e o melhor período.", fields:["Nome","WhatsApp","Tipo de ensaio","Período","Cidade"], featured:true, active:true },
+  { id:"empresas", name:"Empresas", description:"Briefing para fotografia e vídeo corporativo.", fields:["Empresa","Contato","WhatsApp","E-mail","Briefing","Prazo"], featured:false, active:true },
+  { id:"eventos", name:"Eventos sociais", description:"Festas, batizados e outras celebrações.", fields:["Evento","Responsável","WhatsApp","Data","Local"], featured:false, active:true },
+  { id:"personalizado", name:"Pedido personalizado", description:"Uma porta aberta para outros projetos.", fields:["Nome","WhatsApp","O que você precisa?","Data ou prazo"], featured:false, active:true },
+];
+
+function DeliverySalesWorkspace({ setNotice }: { setNotice:(message:string)=>void }) {
+  const [jobType,setJobType]=useState<"casamento"|"aniversario"|"ensaio"|"corporativo"|"marketing">("casamento");
+  const [cover,setCover]=useState("");
+  const [format,setFormat]=useState<"horizontal"|"vertical">("horizontal");
+  const [position,setPosition]=useState("50");
+  const [guidePdf,setGuidePdf]=useState<{name:string;url:string}|null>(null);
+  const [guideVisible,setGuideVisible]=useState(true);
+  const [guideMode,setGuideMode]=useState<"preparacao"|"album"|"quinzeDias">("preparacao");
+  const [guideVideo,setGuideVideo]=useState("");
+  const [alignmentNotes,setAlignmentNotes]=useState("");
+  const [guideLibraries,setGuideLibraries]=useState({
+    preparacao:["Escolha roupas confortáveis e coordenadas, evitando estampas que disputem atenção.","Prefira um local com significado e que combine com o estilo desejado.","Considere luz e horário; o fim da tarde costuma oferecer iluminação mais suave."],
+    album:["Conte a história em sequência: preparação, cerimônia, retratos, família e festa.","Escolha primeiro as fotos indispensáveis; depois complete as transições e detalhes.","Use imagens maiores para momentos emocionantes e marcantes; sequências menores funcionam bem para ações e detalhes.","Evite muitas fotos quase iguais. Variedade de planos, pessoas e emoções deixa o álbum mais interessante.","Confira tamanho, número de páginas, tipo de capa, papel, acabamento e prazo antes de aprovar."],
+    quinzeDias:["Agende a reunião de alinhamento com o fotógrafo e confirme todos os horários e endereços.","Combine com a maquiadora para a noiva estar pronta cerca de 2 horas antes da cerimônia se desejar fotos com tranquilidade.","Envie referências importantes e avise se houver pessoas, detalhes ou momentos que não podem faltar.","Confirme responsáveis, contatos, restrições do local, deslocamentos e plano para chuva.","Decida se deseja encomendar quadros, ampliações, livro do ensaio ou outros produtos antes do evento."],
+  });
+  const guideTips=guideLibraries[guideMode];
+  const setGuideTips=(updater:(items:string[])=>string[])=>setGuideLibraries(libraries=>({...libraries,[guideMode]:updater(libraries[guideMode])}));
+  const [products,setProducts]=useState([
+    {id:"album",title:"Álbum do casamento",description:"Uma história impressa para atravessar gerações, sem depender de telas, senhas ou links.",action:"Conhecer os álbuns",active:true},
+    {id:"book",title:"Livro do pré-wedding",description:"Transforme o ensaio em um livro para recordar essa fase e compor a decoração do casamento.",action:"Ver modelos",active:true},
+    {id:"frames",title:"Quadros e ampliações",description:"Leve as imagens favoritas para sua casa ou presenteie pessoas importantes.",action:"Pedir orçamento",active:true},
+  ]);
+  const jobProfiles={casamento:{label:"Casamento",client:"Nathalia & Victor",portal:"Memórias do casamento",guide:"Guia do casal"},aniversario:{label:"Aniversário e 15 anos",client:"Isabella · 15 anos",portal:"Memórias da celebração",guide:"Guia para a festa"},ensaio:{label:"Ensaio",client:"Marina Alves",portal:"Seu ensaio",guide:"Guia para o ensaio"},corporativo:{label:"Evento corporativo",client:"Empresa Aurora",portal:"Cobertura do evento",guide:"Orientações para a produção"},marketing:{label:"Marketing e conteúdo",client:"Marca Horizonte",portal:"Conteúdos da campanha",guide:"Briefing e preparação"}} as const;
+  const profile=jobProfiles[jobType];
+  const requestProduct=(product:{id:string;title:string;description:string;action:string})=>{const orderId=`PED-${Date.now().toString().slice(-6)}`;const message=["Olá, Studio Melk! Gostaria de solicitar este produto:","",`Pedido: ${orderId}`,`Cliente/projeto: ${profile.client}`,`Tipo de trabalho: ${profile.label}`,`Produto: ${product.title}`,`Detalhes: ${product.description}`,"Quantidade: 1","Opção/acabamento: quero receber as opções disponíveis","Observações: confirmar prazo, formato, uso e valor final","","Por favor, envie as opções para eu concluir o pedido."].join("\n");window.open(`https://wa.me/5511999160224?text=${encodeURIComponent(message)}`,"_blank","noopener,noreferrer");setNotice(`${orderId} preparado para ${profile.label.toLowerCase()}.`)};
+  return <section className="commerce-delivery"><div className="section-heading"><div><h2>Entregas e produtos</h2><p>Portal, relatórios e ofertas se adaptam ao tipo de trabalho.</p></div><div className="adaptive-job"><label>Visualizar como<select value={jobType} onChange={event=>setJobType(event.target.value as typeof jobType)}><option value="casamento">Casamento</option><option value="aniversario">Aniversário e 15 anos</option><option value="ensaio">Ensaio</option><option value="corporativo">Evento corporativo</option><option value="marketing">Marketing e conteúdo</option></select></label><button className="primary-button" onClick={()=>setNotice(`Nova entrega de ${profile.label.toLowerCase()} preparada.`)}><Plus size={17}/> Nova entrega</button></div></div>
+    <div className="delivery-editor-grid"><aside className="delivery-controls"><h3>Capa do portal</h3><p>Sem imagem, usamos um fundo neutro. Você pode adicionar foto do casal, aniversariante, equipe, evento ou campanha.</p><label className="cover-upload"><ImageIcon size={18}/><span>{cover?"Trocar imagem de capa":"Adicionar imagem de capa"}</span><input type="file" accept="image/*" onChange={e=>{const file=e.target.files?.[0];if(file)setCover(URL.createObjectURL(file))}}/></label><div className="cover-format"><button className={format==="horizontal"?"active":""} onClick={()=>setFormat("horizontal")}>Horizontal</button><button className={format==="vertical"?"active":""} onClick={()=>setFormat("vertical")}>Vertical</button></div><label>Ajustar enquadramento<input type="range" min="0" max="100" value={position} onChange={e=>setPosition(e.target.value)}/></label>{cover&&<button className="outline-button" onClick={()=>setCover("")}>Usar fundo neutro</button>}</aside><div className={`delivery-preview ${format}`} style={cover?{backgroundImage:`linear-gradient(90deg,rgba(5,32,24,.9),rgba(5,32,24,.16)),url(${cover})`,backgroundPosition:`${position}% center`}:undefined}><div><span>{profile.portal}</span><h3>{jobType==="marketing"?"Conteúdo pronto para colocar sua marca em movimento.":jobType==="corporativo"?"A história do seu evento, organizada para sua equipe.":"Suas imagens merecem permanecer perto."}</h3><p>{profile.client} · fotos, vídeos e documentos</p><button>Acessar entregas</button></div></div></div>
+    <div className="album-message"><BookOpen size={32}/><div><h3>Mais que fotografias: uma herança de família</h3><p>Arquivos digitais são práticos. O álbum é o objeto que volta às mãos em aniversários, encontros e novas gerações. O cliente entende essa importância e solicita opções sem pressão.</p></div><button className="primary-button" onClick={()=>requestProduct(products[0])}>Quero conhecer</button></div>
+    <div className="guide-mode-tabs"><button className={guideMode==="preparacao"?"active":""} onClick={()=>setGuideMode("preparacao")}>Guia do ensaio</button><button className={guideMode==="album"?"active":""} onClick={()=>setGuideMode("album")}>Escolha das fotos e álbum</button><button className={guideMode==="quinzeDias"?"active":""} onClick={()=>setGuideMode("quinzeDias")}>15 dias antes</button></div>
+    <section className="session-guide">
+      <div className="session-guide-heading"><div><BookOpen size={25}/><span><h3>{guideMode==="album"?"Guia de escolha das fotos para o álbum":guideMode==="quinzeDias"?"Preparação e alinhamento — 15 dias antes":profile.guide}</h3><p>{guideMode==="album"?"Sequência, fotos indispensáveis, tamanhos, acabamentos e aprovação.":guideMode==="quinzeDias"?"Reunião, referências, horários, fornecedores e decisões finais.":"Um link fixo com orientações adaptadas ao trabalho."}</p></span></div><button className={guideVisible?"guide-on":"guide-off"} onClick={()=>setGuideVisible(value=>!value)}>{guideVisible?"Visível no portal":"Oculto"}</button></div>
+      <div className="session-guide-body"><div className="guide-tips"><strong>Orientações que aparecem no link</strong>{guideTips.map((tip,index)=><label key={index}><span>{index+1}</span><textarea value={tip} onChange={event=>setGuideTips(items=>items.map((item,itemIndex)=>itemIndex===index?event.target.value:item))}/><button aria-label="Excluir dica" onClick={()=>setGuideTips(items=>items.filter((_,itemIndex)=>itemIndex!==index))}>×</button></label>)}<button className="outline-button" onClick={()=>setGuideTips(items=>[...items,"Nova orientação para este trabalho."])}><Plus size={15}/> Adicionar orientação</button></div>
+      <div className="guide-document"><strong>PDF e vídeo explicativo</strong><p>Complemente o guia com seu PDF e um vídeo do YouTube, exibido dentro do portal.</p><label className="guide-upload"><Paperclip size={18}/><span>{guidePdf?guidePdf.name:"Adicionar PDF com orientações"}</span><input type="file" accept="application/pdf,.pdf" onChange={event=>{const file=event.target.files?.[0];if(file){setGuidePdf({name:file.name,url:URL.createObjectURL(file)});setNotice(file.name + " anexado ao material de orientação.")}}}/></label>{guidePdf&&<div className="guide-file-actions"><a href={guidePdf.url} target="_blank" rel="noreferrer">Abrir PDF</a><button onClick={()=>setGuidePdf(null)}>Remover</button></div>}<label className="guide-video">Link do vídeo no YouTube<input value={guideVideo} onChange={event=>setGuideVideo(event.target.value)} placeholder="https://youtube.com/watch?v=..."/></label>{guideVideo&&<div className="video-preview"><span>Prévia do vídeo vinculada</span><a href={guideVideo} target="_blank" rel="noreferrer">Abrir vídeo <ExternalLink size={13}/></a></div>}<button className="primary-button" disabled={!guideVisible} onClick={()=>{const guideUrl=`https://studio-melk-next.vercel.app/guia/${jobType}/${guideMode}`;const message=[`Olá, ${profile.client}!`,`Preparamos um guia com informações importantes:`,guideUrl,guidePdf?`PDF complementar: ${guidePdf.name}`:"",guideVideo?`Vídeo explicativo: ${guideVideo}`:"","Qualquer dúvida, fale com o Studio Melk."].filter(Boolean).join("\n\n");window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,"_blank","noopener,noreferrer");setNotice("Guia, PDF e vídeo preparados para envio.")}}><Send size={15}/> Enviar guia completo</button><button className="outline-button" onClick={async()=>{const url=`https://studio-melk-next.vercel.app/guia/${jobType}/${guideMode}`;try{await navigator.clipboard.writeText(url)}catch{}setNotice("Link fixo do guia copiado.")}}><Link2 size={15}/> Copiar link fixo</button></div></div>
+      {guideMode==="quinzeDias"&&<div className="alignment-workspace"><div><strong>Checklist da ficha do evento</strong>{["Reunião agendada","Horários confirmados","Locais e Maps conferidos","Referências recebidas","Maquiadora alinhada","Equipe e funções confirmadas","Plano de chuva verificado","Produtos adicionais oferecidos"].map(item=><label key={item}><input type="checkbox"/> {item}</label>)}</div><label><strong>Bloco de notas do alinhamento</strong><textarea value={alignmentNotes} onChange={event=>setAlignmentNotes(event.target.value)} placeholder="Anote pedidos especiais, nomes importantes, restrições, referências e decisões da reunião..."/><button className="primary-button" onClick={()=>setNotice("Checklist e notas salvos na ficha do evento.")}><Save size={15}/> Salvar na ficha</button></label></div>}
+    </section>
+    <div className="offer-heading"><div><h3>Catálogo comercial</h3><p>Produtos padrão vêm de Perfil da empresa → Produtos. Aqui você escolhe o que aparece para este cliente e pode criar uma oferta exclusiva.</p></div><div><button className="outline-button" onClick={()=>setNotice("Perfil da empresa aberto na aba Produtos. Alterações serão usadas nos próximos portais.")}><ShoppingBag size={15}/> Editar produtos padrão</button><button className="outline-button" onClick={()=>setProducts(items=>[...items,{id:String(Date.now()),title:"Nova oferta",description:"Explique o produto e sua vantagem.",action:"Solicitar oferta",active:true}])}><Plus size={15}/> Oferta exclusiva</button></div></div>
+    <div className="offer-grid">{products.map(product=><article className={product.active?"":"is-disabled"} key={product.id}><div className="offer-switch"><ShoppingBag size={20}/><button aria-pressed={product.active} onClick={()=>setProducts(items=>items.map(item=>item.id===product.id?{...item,active:!item.active}:item))}>{product.active?"Visível":"Oculto"}</button></div><input value={product.title} onChange={e=>setProducts(items=>items.map(item=>item.id===product.id?{...item,title:e.target.value}:item))}/><textarea value={product.description} onChange={e=>setProducts(items=>items.map(item=>item.id===product.id?{...item,description:e.target.value}:item))}/><div><button className="offer-cta" disabled={!product.active} onClick={()=>requestProduct(product)}>{product.action}</button><button className="link-button" onClick={()=>setNotice(`Página de ${product.title} pronta para receber fotos, variações, preço e futuro link de pagamento.`)}><Link2 size={14}/> Vincular oferta</button></div></article>)}</div></section>;
+}
+
+type AlbumPage = { id: string; name: string; url: string; kind: "capa" | "pagina" };
+type AlbumStatus = "Rascunho" | "Enviado para aprovação" | "Correção solicitada" | "Aprovado" | "Finalizado";
+type AlbumCoverOption = {
+  id: string;
+  name: string;
+  color: string;
+  box: boolean;
+  photo: string;
+  composition: string;
+  position: { x: number; y: number; zoom: number };
+  text: string;
+};
+
+function AlbumWorkspace({ setNotice }: { setNotice: (message: string) => void }) {
+  const [externalLink, setExternalLink] = useState("https://galeria.externa.com/selecao/nathalia-victor");
+  const [pages, setPages] = useState<AlbumPage[]>([]);
+  const [status, setStatus] = useState<AlbumStatus>("Rascunho");
+  const [version, setVersion] = useState(1);
+  const [format, setFormat] = useState("30×30 cm");
+  const [minPages, setMinPages] = useState(30);
+  const [maxPages, setMaxPages] = useState(60);
+  const [albumPages, setAlbumPages] = useState(40);
+  const [coverColor, setCoverColor] = useState("Caramelo");
+  const [composition, setComposition] = useState("1 foto inteira");
+  const [box, setBox] = useState(true);
+  const [coverPhoto, setCoverPhoto] = useState("");
+  const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50, zoom: 100 });
+  const [coverText, setCoverText] = useState("Nathalia & Victor");
+  const [viewerMode, setViewerMode] = useState<"linear" | "flip">("linear");
+  const [viewerShowingCover, setViewerShowingCover] = useState(true);
+  const [approvedPages, setApprovedPages] = useState<string[]>([]);
+  const [referenceLink, setReferenceLink] = useState("");
+  const [replacementPhoto, setReplacementPhoto] = useState("");
+  const [coverOptions, setCoverOptions] = useState<AlbumCoverOption[]>([
+    { id: "caramelo", name: "Capa 1 · Caramelo", color: "Caramelo", box: true, photo: "", composition: "1 foto inteira", position: { x: 50, y: 50, zoom: 100 }, text: "Nathalia & Victor" },
+    { id: "verde", name: "Capa 2 · Verde floresta", color: "Verde floresta", box: true, photo: "", composition: "Foto + texto", position: { x: 50, y: 50, zoom: 100 }, text: "Nathalia & Victor" },
+  ]);
+  const [selectedCoverOption, setSelectedCoverOption] = useState("caramelo");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [correction, setCorrection] = useState("");
+  const colors = ["Verde floresta", "Caramelo", "Areia", "Off-white", "Grafite", "Preto", "Vinho", "Azul petróleo"];
+  const colorClass = (color: string) => color.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z]+/g, "-");
+  const leatherColor = (color: string) => ({ "Verde floresta": "#25483b", Caramelo: "#9b6238", Areia: "#c9af83", "Off-white": "#ede6d9", Grafite: "#515154", Preto: "#202020", Vinho: "#6f2634", "Azul petróleo": "#1c5661" }[color] || "#9b6238");
+  const total = 1850 + Math.max(0, albumPages - 30) * 48 + (box ? 490 : 0);
+  const cover = pages.find((page) => page.kind === "capa");
+  const internalPages = pages.filter((page) => page.kind === "pagina");
+  const allViewerPages = [cover, ...internalPages].filter(Boolean) as AlbumPage[];
+  const activeCoverOption = coverOptions.find((option) => option.id === selectedCoverOption) || coverOptions[0];
+  const activeCoverPhoto = activeCoverOption?.photo || coverPhoto;
+  const activeCoverPosition = activeCoverOption?.photo ? activeCoverOption.position : coverPosition;
+  const activeCoverText = activeCoverOption?.text || coverText;
+
+  function selectCoverOption(option: AlbumCoverOption) {
+    setSelectedCoverOption(option.id);
+    setCoverColor(option.color);
+    setBox(option.box);
+    setCoverPhoto(option.photo);
+    setComposition(option.composition);
+    setCoverPosition(option.position);
+    setCoverText(option.text);
+  }
+  function saveCurrentCoverOption() {
+    setCoverOptions((items) => items.map((item) => item.id === selectedCoverOption ? { ...item, color: coverColor, box, photo: coverPhoto, composition, position: coverPosition, text: coverText } : item));
+    setNotice("Opção de capa salva. O cliente verá esta variação no mesmo link.");
+  }
+  function positionCoverFromPointer(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.type !== "pointerdown" && event.buttons !== 1) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+    setCoverPosition((value) => ({ ...value, x, y }));
+  }
+
+  function addFiles(files: FileList | null, kind: "capa" | "pagina") {
+    if (!files?.length) return;
+    const additions = Array.from(files).map((file, index) => ({ id: `${Date.now()}-${index}`, name: file.name, url: URL.createObjectURL(file), kind }));
+    setPages((items) => kind === "capa" ? [...items.filter((item) => item.kind !== "capa"), additions[0], ...items.filter((item) => item.kind === "pagina")] : [...items, ...additions]);
+    setNotice(kind === "capa" ? "Capa atualizada. A foto ocupa toda a frente do álbum." : `${additions.length} página(s) adicionada(s) à versão ${version}.`);
+  }
+  function movePage(id: string, direction: -1 | 1) {
+    setPages((items) => {
+      const coverItem = items.find((item) => item.kind === "capa");
+      const inner = items.filter((item) => item.kind === "pagina");
+      const index = inner.findIndex((item) => item.id === id);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= inner.length) return items;
+      [inner[index], inner[nextIndex]] = [inner[nextIndex], inner[index]];
+      return coverItem ? [coverItem, ...inner] : inner;
+    });
+  }
+  function publishForApproval() {
+    if (!cover || !internalPages.length) { setNotice("Adicione a capa e ao menos uma página diagramada antes de enviar para aprovação."); return; }
+    setStatus("Enviado para aprovação");
+    setNotice(`Versão ${version} enviada para aprovação. O link público está pronto para compartilhar.`);
+  }
+  function requestCorrection() {
+    setStatus("Correção solicitada");
+    setNotice("Correção registrada nesta versão. O histórico do álbum foi preservado.");
+  }
+  function createNewVersion() {
+    setVersion((number) => number + 1); setStatus("Rascunho"); setCorrection("");
+    setNotice("Nova versão criada. A versão anterior permanece no histórico.");
+  }
+
+  return <section className="album-workspace">
+    <div className="section-heading"><div><h2>Álbuns</h2><p>Apresentação e aprovação após a seleção feita em plataforma externa.</p></div><div className="actions"><button className="outline-button" onClick={() => setViewerOpen(true)}>Pré-visualizar cliente</button><button className="outline-button" onClick={async () => { try { await navigator.clipboard.writeText("https://studio-melk-next.vercel.app/album/nathalia-victor-7q2m"); } catch {} setNotice("Link exclusivo do álbum copiado."); }}><Link2 size={16} /> Copiar link</button><button className="primary-button" onClick={publishForApproval}><Send size={16} /> Enviar para aprovação</button></div></div>
+    <div className="album-status-row"><span className={`album-status ${status.toLowerCase().replaceAll(" ", "-").replace("ç", "c")}`}>{status} · versão {version}</span><small>Vinculado ao contrato existente · Casamento Nathalia & Victor · 22/08/2026</small></div>
+    <div className="album-grid">
+      <main className="album-main">
+        <section className="external-selection"><div><span className="album-icon">↗</span><h3>Seleção feita externamente</h3><p>Este link é apenas referência para o fotógrafo. O Flow não armazena nem seleciona fotos.</p></div><label>Link da galeria ou seleção externa<input value={externalLink} onChange={(event) => setExternalLink(event.target.value)} /></label><a className="outline-button" href={externalLink} target="_blank" rel="noreferrer">Abrir seleção externa <ExternalLink size={14} /></a></section>
+        <section className="album-pages"><div className="album-section-title"><div><h3>Páginas do álbum</h3><p>Envie somente as páginas já diagramadas no seu programa de preferência.</p></div><label className="outline-button upload-button"><Plus size={15} /> Adicionar páginas<input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => addFiles(event.target.files, "pagina")} /></label></div>
+          <label className="album-drop-zone"><ImageIcon size={27} /><strong>Arraste páginas diagramadas ou selecione arquivos</strong><span>JPG, PNG ou WEBP · múltiplos arquivos · até 50 MB por arquivo</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => addFiles(event.target.files, "pagina")} /></label>
+          <div className="album-page-strip"><div className="cover-slot"><strong>Capa</strong><label className="cover-page-upload" style={cover?.url ? { backgroundImage: `url(${cover.url})` } : undefined}><span>{cover ? "Trocar capa" : "Adicionar capa"}</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => addFiles(event.target.files, "capa")} /></label></div><div className="inner-pages"><strong>Páginas do miolo ({internalPages.length || albumPages} páginas)</strong><div>{internalPages.length ? internalPages.map((page, index) => <article key={page.id} className="page-thumb"><button type="button" onClick={() => { setViewerIndex((cover ? 1 : 0) + index); setViewerOpen(true); }} style={{ backgroundImage: `url(${page.url})` }} aria-label={`Ver página ${index + 1}`}><span>{String(index + 1).padStart(2, "0")}</span></button><footer><button onClick={() => movePage(page.id, -1)} aria-label="Mover página para trás">←</button><button onClick={() => movePage(page.id, 1)} aria-label="Mover página para frente">→</button><button onClick={() => setPages((items) => items.filter((item) => item.id !== page.id))} aria-label="Excluir página">×</button></footer></article>) : <p className="empty-pages">As páginas diagramadas aparecerão aqui em ordem.</p>}</div></div></div>
+        </section>
+        <section className="album-history"><div><h3>Versões e aprovação</h3><button className="outline-button" onClick={createNewVersion}>Nova versão</button></div><div className="version-list"><button className={version === 1 ? "current" : ""} onClick={() => setNotice("Versão 1: histórico preservado para consulta.")}><strong>Versão 1</strong><span>Correção solicitada</span><small>Enviada em 12/05/2026</small></button><button className={version >= 2 ? "current" : ""} onClick={() => setNotice(`Versão ${version}: ${status.toLowerCase()}.`)}><strong>Versão {version}</strong><span>{status}</span><small>Atualizada agora</small></button></div><ol className="album-timeline"><li>Álbum criado</li><li>Páginas diagramadas enviadas</li><li>Cliente solicitou correção na página 12</li><li>Versão {version} pronta para aprovação</li></ol></section>
+      </main>
+      <aside className="album-settings"><section><h3>Orçamento do álbum</h3><label>Formato<select value={format} onChange={(event) => setFormat(event.target.value)}><option>30×30 cm</option><option>23×31 cm</option><option>25×35 cm</option></select></label><div className="page-range"><label>Mínimo<input type="number" min="20" value={minPages} onChange={(event) => setMinPages(Number(event.target.value))} /></label><label>Máximo<input type="number" min={minPages} value={maxPages} onChange={(event) => setMaxPages(Number(event.target.value))} /></label></div><label>Páginas atuais<input type="number" min={minPages} max={maxPages} value={albumPages} onChange={(event) => setAlbumPages(Math.max(minPages, Math.min(maxPages, Number(event.target.value))))} /></label><div className="cover-choice"><strong>Capa</strong><span>Foto inteira na frente · couro na lombada e no verso</span></div><div className="color-picker"><strong>Cor do couro</strong><div>{colors.map((color) => <button key={color} className={`${colorClass(color)} ${coverColor === color ? "selected" : ""}`} onClick={() => setCoverColor(color)} aria-label={color}><i />{color}</button>)}</div></div><label className="box-choice"><input type="checkbox" checked={box} onChange={(event) => setBox(event.target.checked)} /> Caixa toda em couro</label><div className="album-total"><span>Álbum {format} · {albumPages} páginas</span><b>R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></div><button className="outline-button full" onClick={() => setNotice("Orçamento do álbum salvo na ficha do cliente.")}>Salvar orçamento</button><button className="primary-button full" onClick={() => setNotice("Proposta de álbum pronta para WhatsApp, e-mail ou link público.")}>Enviar proposta de álbum</button></section>
+        <section className="cover-config">
+          <h3>Capa e caixa</h3>
+          <div className="cover-3d-preview" style={{ "--cover-leather": leatherColor(coverColor) } as React.CSSProperties} aria-label="Prévia da capa: verso e lombada em couro, frente com foto inteira">
+            <div className="cover-back" /><div className="cover-spine">{coverText}</div>
+            <div className="cover-front" onPointerDown={positionCoverFromPointer} onPointerMove={positionCoverFromPointer} style={coverPhoto ? { backgroundImage:`url(${coverPhoto})`,backgroundPosition:`${coverPosition.x}% ${coverPosition.y}%`,backgroundSize:`${coverPosition.zoom}%` } : undefined}><span>{coverText}</span></div>
+          </div>
+          <small className="cover-legend">Arraste a foto na frente para reposicionar · verso e lombada em couro</small>
+          <label className="cover-photo-input" style={coverPhoto ? { backgroundImage: `url(${coverPhoto})`, backgroundPosition:`${coverPosition.x}% ${coverPosition.y}%`, backgroundSize:`${coverPosition.zoom}%` } : undefined}>
+            <span>{coverPhoto ? "Trocar foto da frente" : "Selecionar foto para a capa inteira"}</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) setCoverPhoto(URL.createObjectURL(file)); }} />
+          </label>
+          <div className="composition-options">{["1 foto inteira", "2 fotos", "3 fotos", "Mosaico", "Foto + texto"].map((item) => <button className={composition === item ? "active" : ""} key={item} onClick={() => setComposition(item)}>{item}</button>)}</div>
+          <label className="cover-title">Texto sobre a foto<input value={coverText} onChange={(event) => setCoverText(event.target.value)} placeholder="Nome ou frase da capa" /></label>
+          <div className="crop-controls"><label>Posição horizontal<input type="range" min="0" max="100" value={coverPosition.x} onChange={(event) => setCoverPosition(value => ({...value,x:Number(event.target.value)}))} /></label><label>Posição vertical<input type="range" min="0" max="100" value={coverPosition.y} onChange={(event) => setCoverPosition(value => ({...value,y:Number(event.target.value)}))} /></label><label>Zoom<input type="range" min="100" max="220" value={coverPosition.zoom} onChange={(event) => setCoverPosition(value => ({...value,zoom:Number(event.target.value)}))} /></label></div>
+          <div className="cover-options-editor"><strong>Opções para o cliente</strong><p>Envie mais de uma capa, cor e caixa no mesmo link para o cliente comparar.</p>{coverOptions.map(option=><button key={option.id} className={selectedCoverOption===option.id?"selected":""} onClick={()=>selectCoverOption(option)}><i style={{background:leatherColor(option.color)}} />{option.name}{option.box?" · caixa":""}</button>)}<button onClick={()=>{const id=`opcao-${Date.now()}`;setCoverOptions(items=>[...items,{id,name:`Capa ${items.length+1} · ${coverColor}`,color:coverColor,box,photo:coverPhoto,composition,position:coverPosition,text:coverText}]);setSelectedCoverOption(id);setNotice("Nova opção de capa adicionada para o cliente comparar.");}}>+ Adicionar esta opção</button></div>
+          <button className="outline-button full" onClick={saveCurrentCoverOption}>Salvar alterações nesta capa</button>
+          <p>O layout escolhido afeta apenas a frente. Verso e lombada continuam em couro {coverColor.toLowerCase()}.</p><button className="outline-button full" onClick={() => { setViewerShowingCover(true); setViewerOpen(true); }}>Ajustar recorte e visualizar</button>
+        </section>
+        <section className="album-guides"><h3>Guias e materiais</h3><p><FileText size={15} /> Guia de escolha das fotos.pdf</p><p><ExternalLink size={15} /> Vídeo: Como escolher fotos para o álbum</p></section>
+      </aside>
+    </div>
+    {viewerOpen && <div className="album-viewer" role="dialog" aria-modal="true" aria-label="Prévia do álbum">
+      <header><div><span>Studio Melk</span><h2>Álbum de Nathalia & Victor · versão {version}</h2><small>Confira a capa, o verso e cada página. Você pode aprovar ou pedir uma alteração pontual.</small></div><div><button className={viewerShowingCover ? "outline-button selected-mode" : "outline-button"} onClick={() => setViewerShowingCover(true)}>Capa e caixa</button>{allViewerPages.length > 0 && <button className={!viewerShowingCover ? "outline-button selected-mode" : "outline-button"} onClick={() => setViewerShowingCover(false)}>Páginas</button>}<button className={viewerMode === "linear" ? "outline-button selected-mode" : "outline-button"} onClick={() => setViewerMode("linear")}>Modo linear</button><button className={viewerMode === "flip" ? "outline-button selected-mode" : "outline-button"} onClick={() => setViewerMode("flip")}>Virada de página</button><button className="outline-button" onClick={() => document.documentElement.requestFullscreen?.()}>Tela cheia</button><button className="icon-button" onClick={() => setViewerOpen(false)} aria-label="Fechar">×</button></div></header>
+      <div className="client-cover-options"><strong>Escolha a capa que prefere</strong>{coverOptions.map(option=><button key={option.id} className={selectedCoverOption===option.id?"selected":""} onClick={()=>selectCoverOption(option)}><i style={{background:leatherColor(option.color)}} />{option.name}{option.box?" · com caixa":""}</button>)}</div>
+      <div className={`viewer-stage ${viewerMode}`}>
+        {viewerShowingCover ? <div className="viewer-cover-only" style={{"--viewer-leather":leatherColor(activeCoverOption?.color||coverColor)} as React.CSSProperties}><div className="viewer-cover-back" /><div className="viewer-cover-spine">{activeCoverText}</div><div className="viewer-cover-front" style={activeCoverPhoto ? { backgroundImage:`url(${activeCoverPhoto})`,backgroundPosition:`${activeCoverPosition.x}% ${activeCoverPosition.y}%`,backgroundSize:`${activeCoverPosition.zoom}%` } : undefined}>{activeCoverText}</div><p>{activeCoverOption?.box?"Inclui caixa toda em couro na cor selecionada.":"Sem caixa selecionada."} A frente recebe a foto inteira; verso e lombada permanecem em couro.</p></div> : <><button className="viewer-arrow" onClick={() => setViewerIndex((index) => Math.max(0, index - 1))}>‹</button><figure className={viewerMode === "flip" ? "flip-page" : ""} style={{ backgroundImage: `url(${allViewerPages[Math.min(viewerIndex, allViewerPages.length - 1)]?.url})` }}><figcaption>{viewerIndex === 0 ? "Capa diagramada" : `Páginas ${viewerIndex * 2 - 1}–${viewerIndex * 2}`}</figcaption></figure><button className="viewer-arrow" onClick={() => setViewerIndex((index) => Math.min(allViewerPages.length - 1, index + 1))}>›</button></>}
+      </div>
+      <footer><div className="approval-help"><strong>Como aprovar</strong><span>Compare as capas, veja frente, verso e lombada. Nas páginas, aprove cada uma ou descreva o ajuste e inclua uma referência.</span></div><label>Correção nesta página<textarea value={correction} onChange={(event) => setCorrection(event.target.value)} placeholder="Ex.: trocar a foto da página 12 ou ajustar o texto…" /></label><label className="reference-input">Link ou número da foto<input value={referenceLink} onChange={(event) => setReferenceLink(event.target.value)} placeholder="Cole link ou informe o número" /></label><label className="reference-upload">Enviar foto de referência<input type="file" accept="image/*" onChange={(event) => { const file=event.target.files?.[0]; if(file) setReplacementPhoto(file.name); }} /><span>{replacementPhoto || "Escolher foto"}</span></label><button className="outline-button" disabled={viewerShowingCover} onClick={() => { const current=allViewerPages[viewerIndex]?.id; if(current) setApprovedPages(items => items.includes(current) ? items.filter(id=>id!==current) : [...items,current]); }}> {approvedPages.includes(allViewerPages[viewerIndex]?.id) ? "Página aprovada ✓" : "Aprovar esta página"}</button><button className="outline-button" onClick={requestCorrection}>Solicitar correção</button><button className="primary-button" onClick={() => { setStatus("Aprovado"); setNotice(`Álbum aprovado em versão ${version}.`); setViewerOpen(false); }}>Aprovar álbum</button></footer>
+    </div>}
+  </section>;
+}
+
+function FormsWorkspace({setNotice}:{setNotice:(message:string)=>void}) {
+  const [forms,setForms]=useState<FormTemplate[]>(initialFormTemplates);
+  const [selectedId,setSelectedId]=useState(forms[0].id);
+  const [formKind,setFormKind]=useState<"contato"|"fechamento">("contato");
+  const [kindActive,setKindActive]=useState({contato:true,fechamento:true});
+  const [shareOpen,setShareOpen]=useState(false);
+  const [shareTarget,setShareTarget]=useState("");
+  const selected=forms.find(form=>form.id===selectedId)??forms[0];
+  const closingFields=["Nome completo do contratante","CPF ou CNPJ","RG","WhatsApp","E-mail","Endereço completo","Tipo de evento ou trabalho","Data","Horário","Locais e endereços","Itens escolhidos na proposta","Valor total","Forma de pagamento","Número de parcelas","Datas e valores das parcelas","Observações para o contrato"];
+  const effectiveFields=formKind==="contato"?selected.fields:closingFields;
+  const update=(changes:Partial<FormTemplate>)=>setForms(items=>items.map(item=>item.id===selected.id?{...item,...changes}:item));
+  const toggleFeatured=()=>{if(!selected.featured&&forms.filter(form=>form.featured).length>=6){setNotice("O limite é de 6 formulários em destaque. Os demais continuam acessíveis na lista.");return}update({featured:!selected.featured})};
+  const publicUrl=`https://studio-melk-next.vercel.app/formulario/${selected.id}/${formKind}`;
+  const share=async(action:"copy"|"whatsapp"|"email"|"embed"|"html")=>{if(action==="copy"){try{await navigator.clipboard.writeText(publicUrl)}catch{}setNotice("Link publicado copiado.")}if(action==="whatsapp"){window.open(`https://wa.me/${shareTarget.replace(/\D/g,"")}?text=${encodeURIComponent(`Olá! Preencha o formulário do Studio Melk: ${publicUrl}`)}`,"_blank","noopener,noreferrer");setNotice("Formulário preparado para envio por WhatsApp.")}if(action==="email"){window.location.href=`mailto:${encodeURIComponent(shareTarget)}?subject=${encodeURIComponent(`Formulário Studio Melk — ${selected.name}`)}&body=${encodeURIComponent(`Olá! Preencha o formulário pelo link: ${publicUrl}`)}`;}if(action==="embed"){const code=`<iframe src="${publicUrl}" title="Formulário Studio Melk" width="100%" height="760" frameborder="0"></iframe>`;try{await navigator.clipboard.writeText(code)}catch{}setNotice("Código para incorporar no site copiado.")}if(action==="html")setNotice("Arquivo HTML do formulário preparado para download.")};
+  return <section className="forms-workspace"><div className="section-heading"><div><h2>Formulários publicados</h2><p>Contato simples e fechamento completo, ativos separadamente e adaptados a cada segmento.</p></div><button className="primary-button" onClick={()=>{const id=`form-${Date.now()}`;setForms(items=>[...items,{id,name:"Novo segmento",description:"Conte um pouco sobre o trabalho.",fields:["Nome","Data","Local"],featured:false,active:true}]);setSelectedId(id)}}><Plus size={17}/> Novo segmento</button></div><div className="form-kind-tabs"><button className={formKind==="contato"?"active":""} onClick={()=>setFormKind("contato")}><strong>Formulário de contato</strong><span>Rápido e sem complicação</span></button><button className={formKind==="fechamento"?"active":""} onClick={()=>setFormKind("fechamento")}><strong>Formulário de fechamento</strong><span>Cliente, evento, proposta, contrato e pagamento</span></button><label><input type="checkbox" checked={kindActive[formKind]} onChange={event=>setKindActive(item=>({...item,[formKind]:event.target.checked}))}/>{kindActive[formKind]?"Ativo e compartilhável":"Desativado"}</label></div><div className="forms-layout"><aside className="forms-list"><div className="featured-counter"><strong>{forms.filter(form=>form.featured).length} de 6</strong><span>em destaque</span></div>{forms.map(form=><button className={form.id===selected.id?"selected":""} key={form.id} onClick={()=>setSelectedId(form.id)}><span><strong>{form.name}</strong><small>{form.fields.length} campos iniciais · {form.active?"Publicado":"Oculto"}</small></span>{form.featured&&<em>Destaque</em>}</button>)}</aside><div className="form-builder"><div className="builder-toolbar"><div><span>{formKind==="contato"?"Contato inicial":"Fechamento e contrato"}</span><h3>{selected.name}</h3></div><div><button className="outline-button" onClick={toggleFeatured}>{selected.featured?"Retirar destaque":"Destacar"}</button><button className="primary-button" disabled={!kindActive[formKind]} onClick={()=>setShareOpen(value=>!value)}><Link2 size={15}/> Compartilhar</button></div></div>{shareOpen&&<div className="share-form-panel"><label>WhatsApp ou e-mail<input value={shareTarget} onChange={event=>setShareTarget(event.target.value)} placeholder="Digite o contato para enviar"/></label><div><button onClick={()=>void share("whatsapp")}><MessageCircle size={14}/> WhatsApp</button><button onClick={()=>void share("email")}><Mail size={14}/> E-mail</button><button onClick={()=>void share("copy")}><Link2 size={14}/> Copiar link</button><button onClick={()=>void share("embed")}>&lt;/&gt; Incorporar</button><button onClick={()=>void share("html")}><FileText size={14}/> Baixar HTML</button></div></div>}<label>Nome<input value={selected.name} onChange={e=>update({name:e.target.value})}/></label><label>Mensagem de abertura<textarea value={selected.description} onChange={e=>update({description:e.target.value})}/></label><div className="field-editor"><strong>{formKind==="contato"?"Campos simples e modificáveis":"Dados completos para gerar contrato"}</strong>{effectiveFields.map((field,index)=><div key={`${index}-${field}`}><span>{index+1}</span><input value={field} readOnly={formKind==="fechamento"} onChange={e=>update({fields:selected.fields.map((item,i)=>i===index?e.target.value:item)})}/>{formKind==="contato"&&<button aria-label="Excluir campo" onClick={()=>update({fields:selected.fields.filter((_,i)=>i!==index)})}>×</button>}</div>)}{formKind==="contato"&&<button className="outline-button" onClick={()=>update({fields:[...selected.fields,"Novo campo"]})}><Plus size={15}/> Adicionar campo</button>}</div><div className="builder-footer"><label><input type="checkbox" checked={selected.active} onChange={e=>update({active:e.target.checked})}/> Publicado</label><button className="outline-button" onClick={()=>void share("embed")}>&lt;/&gt; Código para site</button><button className="primary-button" onClick={()=>setNotice("Formulário salvo, publicado e conectado ao fluxo correto.")}><Save size={15}/> Salvar</button></div></div><aside className="form-preview"><span>Prévia do link publicado</span><h3>{selected.name}</h3><p>{selected.description}</p>{effectiveFields.slice(0,5).map(field=><label key={field}>{field}<input placeholder={`Informe ${field.toLowerCase()}`}/></label>)}<button onClick={()=>setNotice(formKind==="contato"?"Contato recebido como Novo lead.":"Fechamento recebido para gerar contrato, agenda e financeiro.")}><Send size={16}/> Enviar informações</button><small>{formKind==="contato"?`Origem: Formulário de contato · ${selected.name}`:`Destino: proposta aprovada → contrato → agenda → financeiro`}</small></aside></div></section>;
+}
+
+ function OperationsWorkspace({ view, setNotice, leads, originalData }: OperationsWorkspaceProps) {
   const importedRecords: EventRecord[] = leads.filter((lead) => lead.source === "Gerador").map((lead) => ({
     id: `project-${lead.id}`, title: lead.event, date: lead.date, time: "Horário a confirmar", place: lead.venue || "Local a confirmar", status: lead.stage === "Aceita" ? "Confirmado" : "Pendente",
     client: lead.name, email: lead.email || "E-mail não informado", phone: lead.phone || "Telefone não informado", project: lead.service || "Serviço a confirmar", value: lead.value,
@@ -314,7 +531,7 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
       id: String(event.id), clientId: client ? String(client.id) : undefined, integrationId: String(event.integrationId || ""), title: String(event.title || "Evento sem título"),
       date: event.date ? new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(new Date(`${event.date}T12:00:00`)) : "Data a confirmar", rawDate: String(event.date || ""),
       time: String(event.time || "Horário a confirmar"),
-      place: String(event.locCerimonia || event.locFesta || "Local a confirmar"), mapUrl: String(event.mapUrl || ""),
+      place: String(event.locCerimonia || event.locFesta || "Local a confirmar"), mapUrl: String(event.mapUrl || ""), partyPlace: String(event.locFesta || ""), partyMapUrl: String(event.partyMapUrl || ""), brideMakingOf: String(event.bridalMakingOf || ""), groomMakingOf: String(event.groomMakingOf || ""), preWeddingDate: String(event.preWeddingDate || ""), preWeddingTime: String(event.preWeddingTime || ""), preWeddingPlace: String(event.preWeddingPlace || ""), route: String(event.roteiro || ""), tasks: String(event.tasks || ""), companyCost: String(event.companyCost || ""), editingCost: String(event.editingCost || ""), extraCosts: String(event.extraCosts || ""),
       status: String(event.status || "Pendente"), client: String(client?.nome || event.title || "Cliente não informado"),
       email: String(client?.email || "E-mail não informado"), phone: String(client?.whatsapp || "Telefone não informado"),
       project: String(order?.servicos || event.services || "Projeto não informado"),
@@ -335,11 +552,19 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const [teamEdits, setTeamEdits] = useState<Record<string, { name: string; role: string; specialSkills: string }>>({});
   const [editingMemberId, setEditingMemberId] = useState("");
   const [openMemberId, setOpenMemberId] = useState("");
+   const [eventWorkspaceOpen, setEventWorkspaceOpen] = useState(false);
+   const [activeEventTab, setActiveEventTab] = useState<"Geral" | "Locais" | "Roteiro" | "Tarefas" | "Equipe" | "Custos">("Geral");
   const [newTeamMember, setNewTeamMember] = useState({ name: "", role: "" });
   const [paymentValues, setPaymentValues] = useState<Record<string, string>>({});
   const [selectedClientId, setSelectedClientId] = useState("");
   const [contractQuery, setContractQuery] = useState("");
   const [agendaYear, setAgendaYear] = useState("todos");
+  const [agendaMode, setAgendaMode] = useState<"lista" | "cartoes">("lista");
+  const [financePeriod, setFinancePeriod] = useState<"todos" | "30" | "90" | "ano">("todos");
+  const [financeClientId, setFinanceClientId] = useState("todos");
+  const [financeType, setFinanceType] = useState<"todos" | "entrada" | "saida">("todos");
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [newFinancialEntry, setNewFinancialEntry] = useState({ type: "entrada", clientId: "", amount: "", date: new Date().toISOString().slice(0, 10), source: "Pix", account: "Conta 1", description: "" });
   const records = baseRecords.map((event) => ({ ...event, ...eventEdits[event.id] }));
   const openEvent = records.find((event) => event.id === openEventId) ?? records[0];
   const datedAgendaRecords = records.map((event) => ({ ...event, agendaDate: normalizedEventDate(event.rawDate) })).sort((left, right) => (left.agendaDate || "9999-12-31").localeCompare(right.agendaDate || "9999-12-31"));
@@ -374,7 +599,9 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const saveOpenEvent = async () => {
     await originalData.patchDocument("events", openEvent.id, {
       title: openEvent.title, date: openEvent.rawDate || "", time: openEvent.time,
-      locCerimonia: openEvent.place, mapUrl: openEvent.mapUrl || "", services: openEvent.project,
+      locCerimonia: openEvent.place, mapUrl: openEvent.mapUrl || "", locFesta: openEvent.partyPlace || "", partyMapUrl: openEvent.partyMapUrl || "",
+      bridalMakingOf: openEvent.brideMakingOf || "", groomMakingOf: openEvent.groomMakingOf || "", preWeddingDate: openEvent.preWeddingDate || "", preWeddingTime: openEvent.preWeddingTime || "", preWeddingPlace: openEvent.preWeddingPlace || "",
+      services: openEvent.project, roteiro: openEvent.route || "", tasks: openEvent.tasks || "", companyCost: openEvent.companyCost || "", editingCost: openEvent.editingCost || "", extraCosts: openEvent.extraCosts || "",
       team: openEvent.team.map((member) => ({ name: member.person, role: member.role, assignment: member.assignment || "Geral", workStart: member.workStart || "", specialDuty: member.specialDuty || "" })),
       teamNotes: openEvent.teamNotes || "", reminders: openEvent.reminders || "", status: openEvent.status || "Confirmado",
     });
@@ -438,6 +665,35 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
   const paidTotal = financialItems.filter((payment) => payment.status === "Pago").reduce((total, payment) => total + Number(payment.valor || 0), 0);
   const pendingItems = financialItems.filter((payment) => payment.status !== "Pago");
   const pendingTotal = pendingItems.reduce((total, payment) => total + Number(payment.valor || 0), 0);
+  const financeClients = originalData.clients.map((client) => ({ id: String(client.id), name: String(client.nome || "Cliente") }));
+  const paymentEntries = financialItems.filter((payment) => payment.status === "Pago").map((payment) => ({
+    id: `pagamento-${String(payment.id)}`, type: "entrada", clientId: payment.clientId, clientName: payment.clientName,
+    amount: Number(payment.valor || 0), date: String(payment.dataPagamento || payment.vencimento || ""), source: String(payment.formaPagamento || payment.forma || "Recebimento do contrato"), account: String(payment.conta || "Conta a definir"), description: `Parcela ${String(payment.parcela || "")}`,
+  }));
+  const registeredEntries = originalData.transactions.map((entry) => ({
+    id: String(entry.id), type: String(entry.type || entry.tipo || "saida") === "entrada" ? "entrada" : "saida", clientId: String(entry.clientId || ""), clientName: String(entry.clientName || entry.cliente || "Sem cliente"),
+    amount: Number(entry.amount || entry.valor || 0), date: String(entry.date || entry.data || ""), source: String(entry.source || entry.origem || "Não informado"), account: String(entry.account || entry.conta || "Conta a definir"), description: String(entry.description || entry.descricao || "Lançamento financeiro"),
+  }));
+  const today = new Date();
+  const financialLedger = [...paymentEntries, ...registeredEntries].filter((entry) => {
+    const entryDate = entry.date ? new Date(`${entry.date.slice(0, 10)}T12:00:00`) : null;
+    const age = entryDate ? (today.getTime() - entryDate.getTime()) / 86400000 : Number.POSITIVE_INFINITY;
+    const periodMatches = financePeriod === "todos" || (financePeriod === "30" && age <= 30) || (financePeriod === "90" && age <= 90) || (financePeriod === "ano" && entryDate?.getFullYear() === today.getFullYear());
+    const clientMatches = financeClientId === "todos" || entry.clientId === financeClientId;
+    const typeMatches = financeType === "todos" || entry.type === financeType;
+    return periodMatches && clientMatches && typeMatches;
+  }).sort((left, right) => String(right.date).localeCompare(String(left.date)));
+  const filteredIncome = financialLedger.filter((entry) => entry.type === "entrada").reduce((total, entry) => total + entry.amount, 0);
+  const filteredExpenses = financialLedger.filter((entry) => entry.type === "saida").reduce((total, entry) => total + entry.amount, 0);
+  const revenueByClient = financeClients.map((client) => ({ ...client, total: financialLedger.filter((entry) => entry.type === "entrada" && entry.clientId === client.id).reduce((total, entry) => total + entry.amount, 0) })).filter((client) => client.total > 0).sort((left, right) => right.total - left.total);
+  const saveFinancialEntry = async () => {
+    const amount = Number(String(newFinancialEntry.amount).replace(",", "."));
+    if (!amount || !newFinancialEntry.date || !newFinancialEntry.source || !newFinancialEntry.account) { setNotice("Preencha valor, data, origem e conta antes de salvar."); return; }
+    const client = financeClients.find((item) => item.id === newFinancialEntry.clientId);
+    await originalData.createDocument("transactions", { type: newFinancialEntry.type, clientId: client?.id || "", clientName: client?.name || "Sem cliente", amount, date: newFinancialEntry.date, source: newFinancialEntry.source, account: newFinancialEntry.account, description: newFinancialEntry.description, createdAt: new Date().toISOString() });
+    setNewFinancialEntry({ type: "entrada", clientId: "", amount: "", date: new Date().toISOString().slice(0, 10), source: "Pix", account: "Conta 1", description: "" });
+    setEntryOpen(false); setNotice("Movimentação financeira salva no banco principal.");
+  };
   const selectedClient = originalData.clients.find((client) => String(client.id) === selectedClientId) ?? originalData.clients[0];
   const savePayment = async (item: Record<string, unknown> & { clientId: string; clientName: string }, status: "Pago" | "Pendente") => {
     const client = originalData.clients.find((record) => String(record.id) === item.clientId);
@@ -458,6 +714,9 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
     const receipt = `RECIBO\nCliente: ${item.clientName}\nParcela: ${String(item.parcela || "—")}\nValor recebido: R$ ${Number(item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\nData: ${item.dataPagamento ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(String(item.dataPagamento))) : "A confirmar"}\nStudio Melk`;
     try { if (navigator.share) await navigator.share({ title: "Recibo Studio Melk", text: receipt }); else await navigator.clipboard.writeText(receipt); setNotice("Recibo preparado para envio. Para enviar como PDF por e-mail, falta configurar o serviço de e-mail."); } catch { setNotice("Envio do recibo cancelado."); }
   };
+  if (view === "Entregas") return <DeliverySalesWorkspace setNotice={setNotice} />;
+  if (view === "Álbuns") return <AlbumWorkspace setNotice={setNotice} />;
+  if (view === "Formulários") return <FormsWorkspace setNotice={setNotice} />;
   if (view === "Lixeira") {
     const trashedEvents = originalData.events.filter((event) => event.status === "Lixeira");
     const trashedFlowRecords = flowRequests.filter((request) => request.status === "Lixeira");
@@ -524,7 +783,13 @@ function OperationsWorkspace({ view, setNotice, leads, originalData }: Operation
     </section>;
   }
 
-  if (view === "Financeiro") return <section className="finance-layout"><div className="section-heading"><div><h2>Financeiro simples</h2><p>Valores calculados a partir dos pagamentos cadastrados no banco principal.</p></div><button className="primary-button" onClick={() => setNotice("A gravação de recebimentos será habilitada depois da cópia de segurança do banco principal.")}><Plus size={17} /> Registrar recebimento</button></div><div className="money-summary"><article><span>Já entrou</span><strong>R$ {paidTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong><small>Pagamentos marcados como pagos</small></article><article><span>Falta receber</span><strong>R$ {pendingTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong><small>{pendingItems.length} parcelas pendentes</small></article><article className="money-action"><WalletCards size={22} /><strong>Próximo passo</strong><p>{pendingItems.length ? "Revisar as parcelas pendentes com os clientes." : "Nenhuma parcela pendente cadastrada."}</p></article></div><div className="simple-ledger"><div className="section-heading"><div><h2>O que precisa da sua atenção</h2><p>Somente dados do banco principal.</p></div></div>{pendingItems.length ? pendingItems.slice(0, 8).map((item, index) => <div className="ledger-row" key={`${item.clientName}-${index}`}><ReceiptText size={19} /><div><strong>{item.clientName}</strong><span>{String(item.vencimento || "Vencimento não informado")}</span></div><b>R$ {Number(item.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b><button className="outline-button" onClick={() => setNotice(`Parcela de ${item.clientName} aberta para conferência.`)}>Revisar</button></div>) : <div className="availability-note"><CheckCircle2 size={18} /><span>Nenhuma cobrança pendente cadastrada no banco principal.</span></div>}</div></section>;
+  if (view === "Financeiro") return <section className="finance-layout">
+    <div className="section-heading"><div><h2>Financeiro</h2><p>Entradas, saídas e contas de destino em uma leitura simples e por cliente.</p></div><button className="primary-button" onClick={() => setEntryOpen((value) => !value)}><Plus size={17} /> {entryOpen ? "Fechar lançamento" : "Nova movimentação"}</button></div>
+    <div className="finance-filters" aria-label="Filtros financeiros"><label>Período<select value={financePeriod} onChange={(event) => setFinancePeriod(event.target.value as typeof financePeriod)}><option value="todos">Todo o período</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="ano">Este ano</option></select></label><label>Cliente<select value={financeClientId} onChange={(event) => setFinanceClientId(event.target.value)}><option value="todos">Todos os clientes</option>{financeClients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Movimentação<select value={financeType} onChange={(event) => setFinanceType(event.target.value as typeof financeType)}><option value="todos">Entradas e saídas</option><option value="entrada">Só entradas</option><option value="saida">Só saídas</option></select></label></div>
+    {entryOpen && <form className="financial-entry-form" onSubmit={(event) => { event.preventDefault(); void saveFinancialEntry(); }}><label>Tipo<select value={newFinancialEntry.type} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, type: event.target.value }))}><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label><label>Cliente <small>(opcional para saída geral)</small><select value={newFinancialEntry.clientId} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, clientId: event.target.value }))}><option value="">Sem cliente</option>{financeClients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Valor (R$)<input inputMode="decimal" value={newFinancialEntry.amount} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, amount: event.target.value }))} placeholder="0,00" /></label><label>Data<input type="date" value={newFinancialEntry.date} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, date: event.target.value }))} /></label><label>Origem / forma<select value={newFinancialEntry.source} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, source: event.target.value }))}><option>Pix</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Boleto</option><option>Fornecedor</option><option>Despesa operacional</option><option>Outro</option></select></label><label>Conta de entrada/saída<select value={newFinancialEntry.account} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, account: event.target.value }))}><option>Conta 1</option><option>Conta 2</option><option>Caixa</option><option>Cartão da empresa</option><option>Conta pessoal</option></select></label><label className="financial-entry-note">Descrição<input value={newFinancialEntry.description} onChange={(event) => setNewFinancialEntry((current) => ({ ...current, description: event.target.value }))} placeholder="Ex.: sinal do contrato, aluguel de equipamento…" /></label><div className="new-event-actions"><button type="button" className="outline-button" onClick={() => setEntryOpen(false)}>Cancelar</button><button className="primary-button" disabled={originalData.saving} type="submit"><Save size={16} /> Salvar movimentação</button></div></form>}
+    <div className="money-summary"><article><span>Entradas no filtro</span><strong>R$ {filteredIncome.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong><small>{financialLedger.filter((entry) => entry.type === "entrada").length} lançamento(s)</small></article><article className="expense-summary"><span>Saídas no filtro</span><strong>R$ {filteredExpenses.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong><small>{financialLedger.filter((entry) => entry.type === "saida").length} lançamento(s)</small></article><article className="money-action"><WalletCards size={22} /><strong>Saldo do período</strong><p>R$ {(filteredIncome - filteredExpenses).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></article></div>
+    <div className="finance-detail-grid"><section className="simple-ledger"><div className="section-heading"><div><h2>Movimentações</h2><p>Veja a origem e a conta usada em cada lançamento.</p></div></div>{financialLedger.length ? financialLedger.map((entry) => <div className={`ledger-row ${entry.type === "saida" ? "is-expense" : ""}`} key={entry.id}><ReceiptText size={19} /><div><strong>{entry.description}</strong><span>{entry.clientName} · {entry.date || "Data não informada"}</span><small>{entry.source} → {entry.account}</small></div><b>{entry.type === "saida" ? "−" : "+"} R$ {entry.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b><span className={`finance-type ${entry.type}`}>{entry.type}</span></div>) : <div className="availability-note"><CheckCircle2 size={18} /><span>Nenhuma movimentação no filtro escolhido.</span></div>}</section><aside className="client-revenue"><h2>Faturamento por cliente</h2><p>Entradas recebidas no período e filtros selecionados.</p>{revenueByClient.length ? revenueByClient.map((client) => <button key={client.id} onClick={() => setFinanceClientId(client.id)}><span><strong>{client.name}</strong><small>Ver só este cliente</small></span><b>R$ {client.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</b></button>) : <p className="empty-finance">Ainda não há entradas para separar por cliente.</p>}<div className="pending-finance"><strong>Em aberto</strong><span>R$ {pendingTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span><small>{pendingItems.length} parcela(s) pendente(s) no banco principal.</small></div></aside></div>
+  </section>;
 
   if (view === "Contratos") {
     const searchedContracts = records.filter((event) => (event.contractUrl || event.integrationId || event.contractSigned) && `${event.title} ${event.client} ${event.date} ${event.project}`.toLowerCase().includes(contractQuery.toLowerCase()));

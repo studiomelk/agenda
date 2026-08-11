@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./styles.css";
+import "./finance.css";
 
 export const metadata: Metadata = {
   title: "Studio Melk — Manager Next",
