@@ -52,10 +52,12 @@ export async function POST(request: Request) {
     const eventId = `gerador-event-${payload.externalId}`;
     const total = Number(payload.commercial?.total || 0);
     const requestData = {
-      status: payload.type === "lead" ? "Pendente" : "Contratado", tipoEvento: payload.event?.title || "Evento",
+      // Contratos já entram confirmados: cliente + evento + agenda são criados
+      // no mesmo envio. Propostas e formulários permanecem no funil comercial.
+      status: payload.type === "contract" ? "Contratado" : "Pendente", tipoEvento: payload.event?.title || "Evento",
       dadosContratante: { nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "" },
       dadosEvento: { data: payload.event?.date || "", horario: payload.event?.time || "", local: payload.event?.place || "" },
-      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), origem: "Gerador",
+      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), origem: payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site",
     };
     await write("solicitacoes", `gerador-${payload.externalId}`, requestData, auth);
     if (payload.type === "contract") {

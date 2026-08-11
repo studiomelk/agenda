@@ -1656,7 +1656,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
  <div class="field"><label style="font-size:10px;">Nome (casal / cliente / empresa)</label>
  <input type="text" id="cfd_nome" placeholder="João e Maria / Studio X" oninput="ctrCampoAtualizar()"></div>
  <div class="field"><label style="font-size:10px;">Data do evento</label>
- <input type="text" id="cfd_data" placeholder="15/03/2027" oninput="ctrCampoAtualizar()"></div>
+<input type="date" id="cfd_data" oninput="ctrCampoAtualizar();pmtGerarParcelas()"></div>
  <div class="field"><label style="font-size:10px;">Local cerimônia</label>
  <input type="text" id="cfd_local1" placeholder="Igreja / Local" oninput="ctrCampoAtualizar()"></div>
  <div class="field"><label style="font-size:10px;">Local recepção</label>
@@ -2199,10 +2199,12 @@ function pmtGerarParcelas() {
   const parcela = total > 0 ? +(total / n).toFixed(2) : 0;
   const tbody = document.getElementById('pmt_tbody');
   if (!tbody) return;
-  const hoje = new Date();
+  // Parcela final deve vencer antes do evento; usa a data do contrato quando preenchida.
+  const eventDate = (document.getElementById('cfd_data')||{}).value || '';
+  const hoje = /^\d{4}-\d{2}-\d{2}$/.test(eventDate) ? new Date(eventDate+'T12:00:00') : new Date();
   tbody.innerHTML = '';
   for (let i = 0; i < n; i++) {
-    const dt = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1, hoje.getDate());
+    const dt = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1 - n, hoje.getDate());
     const dtISO = dt.toISOString().slice(0,10);
     // Última parcela absorve arredondamento
     const val = (i === n - 1) ? +(total - parcela * (n - 1)).toFixed(2) : parcela;
@@ -2259,10 +2261,11 @@ function ppPmtGerarParcelas() {
   const parcela = total > 0 ? +(total / n).toFixed(2) : 0;
   const tbody = document.getElementById('pp_pmt_tbody');
   if (!tbody) return;
-  const hoje = new Date();
+  const eventDate = (document.getElementById('pp_dataCasamento')||{}).value || '';
+  const hoje = /^\d{4}-\d{2}-\d{2}$/.test(eventDate) ? new Date(eventDate+'T12:00:00') : new Date();
   tbody.innerHTML = '';
   for (let i = 0; i < n; i++) {
-    const dt = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1, hoje.getDate());
+    const dt = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1 - n, hoje.getDate());
     const dtISO = dt.toISOString().slice(0,10);
     const val = (i === n - 1) ? +(total - parcela * (n - 1)).toFixed(2) : parcela;
     tbody.insertAdjacentHTML('beforeend',
@@ -3022,16 +3025,16 @@ const CL_CAMPOS_POR_TIPO = {
     ['evNoiva', 'Nome da noiva'], ['evNoivo', 'Nome do noivo'],
     ['evWhatsappNoiva', 'WhatsApp da noiva'], ['evWhatsappNoivo', 'WhatsApp do noivo'],
     ['evInstagramNoiva', 'Instagram da noiva (opcional)'], ['evInstagramNoivo', 'Instagram do noivo (opcional)'],
-    ['evData', 'Data do casamento'],
-    ['evHorarioCerimonia', 'Horário da cerimônia'],
-    ['evLocalCerimonia', 'Local da cerimônia'],
-    ['evLocalFesta', 'Local da festa (recepção)'],
+    ['evData', 'Data do casamento', 'date'],
+    ['evHorarioCerimonia', 'Horário da cerimônia', 'time'],
+    ['evLocalCerimonia', 'Local da cerimônia'], ['evEnderecoCerimonia', 'Endereço da cerimônia'], ['evMapsCerimonia', 'Link Google Maps cerimônia', 'url'],
+    ['evLocalFesta', 'Local da festa (recepção)'], ['evEnderecoFesta', 'Endereço da festa'], ['evMapsFesta', 'Link Google Maps festa', 'url'],
     ['evQuantidadeConvidados', 'Número de convidados'],
   ],
   aniversario: [
     ['evDonoFesta', 'Nome do(a) aniversariante'],
     ['evWhatsapp', 'WhatsApp'], ['evInstagram', 'Instagram'],
-    ['evData', 'Data do evento'], ['evHorario', 'Horário'],
+    ['evData', 'Data do evento', 'date'], ['evHorario', 'Horário', 'time'],
     ['evLocalFesta', 'Local da festa'],
     ['evQuantidadeConvidados', 'Número de convidados'],
   ],
@@ -3039,21 +3042,21 @@ const CL_CAMPOS_POR_TIPO = {
     ['evEmpresa', 'Nome da empresa'], ['evNomeEvento', 'Nome do evento'],
     ['evResponsavel', 'Responsável / contato'],
     ['evWhatsapp', 'WhatsApp'], ['evInstagram', 'Rede social'],
-    ['evData', 'Data do evento'], ['evHorario', 'Horário'],
+    ['evData', 'Data do evento', 'date'], ['evHorario', 'Horário', 'time'],
     ['evLocalFesta', 'Local do evento'],
     ['evQuantidadeConvidados', 'Número de participantes'],
   ],
   ensaio: [
     ['evDonoFesta', 'Nome do cliente'],
     ['evWhatsapp', 'WhatsApp'], ['evInstagram', 'Instagram'],
-    ['evData', 'Data do ensaio'], ['evHorario', 'Horário'],
+    ['evData', 'Data do ensaio', 'date'], ['evHorario', 'Horário', 'time'],
     ['evLocalFesta', 'Local do ensaio'],
     ['evTemaEnsaio', 'Tema / estilo do ensaio'],
   ],
   outros: [
     ['evDonoFesta', 'Nome do cliente / evento'],
     ['evWhatsapp', 'WhatsApp'], ['evInstagram', 'Instagram / rede social'],
-    ['evData', 'Data do evento'], ['evHorario', 'Horário'],
+    ['evData', 'Data do evento', 'date'], ['evHorario', 'Horário', 'time'],
     ['evLocalFesta', 'Local do evento'],
     ['evQuantidadeConvidados', 'Número de participantes'],
   ]
@@ -3076,7 +3079,7 @@ function renderClCamposEvento() {
   campos.forEach(function(c) {
     const key = c[0], label = c[1];
     const val = (clEventoValues[key] || '').replace(/"/g, '&quot;');
-    html += '<div class="field"><label>' + label + '</label><input type="text" data-clfield="' + key + '" value="' + val + '" oninput="clEventoValues[\'' + key + '\']=this.value"></div>';
+    html += '<div class="field"><label>' + label + '</label><input type="' + (c[2] || 'text') + '" data-clfield="' + key + '" value="' + val + '" oninput="clEventoValues[\'' + key + '\']=this.value"></div>';
   });
   box.innerHTML = html;
 }

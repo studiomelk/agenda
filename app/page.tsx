@@ -92,8 +92,8 @@ export default function Page() {
       return {
         id: String(request.id), name,
         initials: name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "CL",
-        source: "Gerador" as const,
-        stage: (request.status === "Pendente" ? "Novo lead" : "Qualificado") as LeadStage,
+        source: String(request.origem || "").includes("site") ? "Formulário" as const : String(request.origem || "").includes("Proposta") ? "Proposta" as const : "Gerador" as const,
+        stage: (request.status === "Pendente" ? "Novo lead" : "Aceita") as LeadStage,
         event: String(request.tipoEvento || "Evento a confirmar"),
         date: String(eventData.data || "Data a confirmar"),
         value: rawValue ? `R$ ${rawValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "Valor a confirmar",
@@ -113,6 +113,10 @@ export default function Page() {
     const nextStage = leadStages[Math.min(position + 1, leadStages.length - 1)];
     setLeads((all) => all.map((lead) => lead.id === selected.id ? { ...lead, stage: nextStage, next: "Etapa atualizada agora" } : lead));
     setNotice(`${selected.name} avançou para “${nextStage}” nesta demonstração.`);
+  }
+  function moveLead(id: string, stage: LeadStage) {
+    setLeads((all) => all.map((lead) => lead.id === id ? { ...lead, stage, next: `Movido manualmente para ${stage}` } : lead));
+    setNotice("Etapa atualizada manualmente no funil.");
   }
 
   return (
@@ -152,8 +156,8 @@ export default function Page() {
             <div className="pipeline" aria-label="Funil de leads">
               {activeStages.map((stage) => {
                 const stageLeads = leads.filter((lead) => lead.stage === stage);
-                return <div className="stage" key={stage}><div className="stage-title"><span>{stage}</span><b>{stageLeads.length}</b></div>
-                  {stageLeads.length ? stageLeads.map((lead) => <button key={lead.id} className="lead-card" onClick={() => setSelectedId(lead.id)}>
+                return <div className="stage" key={stage} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const id = event.dataTransfer.getData("text/plain"); if (id) moveLead(id, stage); }}><div className="stage-title"><span>{stage}</span><b>{stageLeads.length}</b></div>
+                  {stageLeads.length ? stageLeads.map((lead) => <button key={lead.id} draggable className="lead-card" onDragStart={(event) => event.dataTransfer.setData("text/plain", lead.id)} onClick={() => setSelectedId(lead.id)}>
                     <span className={`avatar ${lead.tone}`}>{lead.initials}</span><span><strong>{lead.name}</strong><small>{lead.event}</small><i>{lead.value}</i></span>
                   </button>) : <div className="empty-stage">Sem leads nesta etapa</div>}
                 </div>;
@@ -167,7 +171,7 @@ export default function Page() {
             <div className="stage-status"><span>Etapa atual</span><strong>{selected.stage}</strong></div>
             <dl><div><dt>Evento</dt><dd>{selected.event}</dd></div><div><dt>Data prevista</dt><dd>{selected.date}</dd></div><div><dt>Proposta</dt><dd>{selected.value}</dd></div><div><dt>Próxima ação</dt><dd>{selected.next}</dd></div></dl>
             <div className="timeline"><h3>Atividade recente</h3><p><span className="dot" />Lead criado a partir de {selected.source.toLowerCase()}<small>Hoje, 10:24</small></p><p><span className="dot muted" />Dados do evento organizados<small>Hoje, 10:25</small></p></div>
-            <button className="primary-button full" onClick={advanceLead}>Avançar no funil <ChevronRight size={17} /></button>
+            <div className="detail-actions"><button className="outline-button" disabled={leadStages.indexOf(selected.stage) === 0} onClick={() => moveLead(selected.id, leadStages[Math.max(0, leadStages.indexOf(selected.stage) - 1)])}>Retroceder</button><button className="primary-button" onClick={advanceLead}>Avançar no funil <ChevronRight size={17} /></button></div>
           </aside>
         </section>
 
