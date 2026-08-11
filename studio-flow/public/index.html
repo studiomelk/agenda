@@ -1397,7 +1397,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
  <div class="textStyleRow" data-textkey="introTexto"></div>
 
  <div class="field-row" style="display:flex;gap:10px;">
- <div class="field" style="flex:1;"><label>Data do casamento</label><input type="text" id="pp_dataCasamento" placeholder="Ex: 15/03/2027" oninput="debouncedPropostaPreview()"></div>
+ <div class="field" style="flex:1;"><label>Data do casamento</label><input type="date" id="pp_dataCasamento" oninput="ppPmtGerarParcelas();debouncedPropostaPreview()"></div>
  <div class="field" style="flex:1;"><label>Local do casamento</label><input type="text" id="pp_localCasamento" placeholder="Ex: Itu - SP" oninput="debouncedPropostaPreview()"></div>
  </div>
  <span class="field-hint" style="display:block;margin-bottom:8px;">Aparecem logo após a mensagem ao casal. Também já vêm pré-preenchidos no formulário (Passo 4) pro cliente só confirmar.</span>
@@ -10012,7 +10012,7 @@ function studioManagerPayload(type) {
     type: type,
     externalId: 'flow-' + Date.now(),
     client: { name: client.nome || eventName || 'Cliente', email: client.email || '', whatsapp: client.whatsapp || '' },
-    event: { title: eventName, date: event.evData || proposal.dataCasamento || '', time: event.evHorarioCerimonia || event.evHorario || '', place: place, mapsUrl: place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place) : '' },
+    event: { title: eventName, date: event.evData || proposal.dataCasamento || '', time: event.evHorarioCerimonia || event.evHorario || '', place: place, mapsUrl: event.evMapsFesta || event.evMapsCerimonia || (place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(event.evEnderecoFesta || event.evEnderecoCerimonia || place) : '') },
     commercial: { service: service, total: total, installments: (document.getElementById('cfd_parcelas') || {}).value || '', dueDate: (document.getElementById('cfd_vencimento') || {}).value || '' },
     contract: { signed: false }
   };
@@ -10027,7 +10027,7 @@ async function sendToStudioManager(type) {
     const response = await fetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', 'x-studio-pair-code': code }, body: JSON.stringify(payload) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'O CRM recusou o envio.');
-    setStudioManagerStatus(type === 'contract' ? 'Contrato enviado: cliente, evento e financeiro foram criados no CRM.' : 'Proposta enviada ao CRM.');
+    setStudioManagerStatus(body.message || (type === 'contract' ? 'Contrato enviado: cliente, evento e financeiro foram criados no CRM.' : 'Proposta enviada ao CRM.'));
     if (typeof showBizToast === 'function') showBizToast('✓ Enviado ao Studio Melk Manager.');
   } catch (error) {
     setStudioManagerStatus(error.message || 'Falha ao enviar.', true);

@@ -57,15 +57,15 @@ export async function POST(request: Request) {
       status: payload.type === "contract" ? "Contratado" : "Pendente", tipoEvento: payload.event?.title || "Evento",
       dadosContratante: { nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "" },
       dadosEvento: { data: payload.event?.date || "", horario: payload.event?.time || "", local: payload.event?.place || "" },
-      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), origem: payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site",
+      dadosComerciais: { servico: payload.commercial?.service || "", valorTotal: total, parcelas: String(payload.commercial?.installments || "") }, criadoEm: new Date().toISOString(), externalId: payload.externalId, tipoRecebido: payload.type, origem: payload.type === "contract" ? "Contrato do Studio Melk Flow" : payload.type === "proposal" ? "Proposta do Studio Melk Flow" : "Contato de site",
     };
     await write("solicitacoes", `gerador-${payload.externalId}`, requestData, auth);
     if (payload.type === "contract") {
-      await write("clientes", clientId, { nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: total ? [{ id: `entrada-${payload.externalId}`, parcela: 1, valor: total, status: "Pendente", vencimento: payload.commercial?.dueDate || "" }] : [] }, auth);
-      await write("events", eventId, { title: payload.event?.title || "Evento", date: payload.event?.date || "", time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
-      await write("pedidos", `gerador-order-${payload.externalId}`, { clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
+      await write("clientes", clientId, { integrationId: payload.externalId, nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: total ? [{ id: `entrada-${payload.externalId}`, parcela: 1, valor: total, status: "Pendente", vencimento: payload.commercial?.dueDate || "" }] : [] }, auth);
+      await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: payload.event?.date || "", time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
+      await write("pedidos", `gerador-order-${payload.externalId}`, { integrationId: payload.externalId, clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
     }
-    return NextResponse.json({ ok: true, imported: payload.type });
+    return NextResponse.json({ ok: true, imported: payload.type, externalId: payload.externalId, agendaCreated: payload.type === "contract", message: payload.type === "contract" ? "Contrato recebido: ficha, agenda e financeiro foram criados." : "Proposta recebida no funil comercial." });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Falha ao importar." }, { status: 502 });
   }
