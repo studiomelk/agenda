@@ -63,16 +63,35 @@ async function write(collection: string, id: string, data: Record<string, unknow
   if (!response.ok) throw new Error("O banco principal recusou a gravação.");
 }
 
+function decodeSetting(value: unknown) {
+  const item = value as { stringValue?: string; booleanValue?: boolean } | undefined;
+  return item?.stringValue ?? item?.booleanValue;
+}
+
+async function integrationSettings(auth: string) {
+  const fallback = { pairCode: process.env.GERADOR_PAIR_CODE || "Melk21", enabled: true };
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/integration_settings/flow`, {
+    headers: { authorization: `Bearer ${auth}` }, cache: "no-store",
+  });
+  if (response.status === 404) return fallback;
+  const body = await response.json() as { fields?: Record<string, unknown> };
+  if (!response.ok) return fallback;
+  return {
+    pairCode: String(decodeSetting(body.fields?.pairCode) || fallback.pairCode),
+    enabled: decodeSetting(body.fields?.enabled) !== false,
+  };
+}
+
 export async function POST(request: Request) {
   const expected = process.env.GERADOR_SYNC_SECRET;
-  const expectedPairCode = process.env.GERADOR_PAIR_CODE || "Melk21";
+  const auth = await token();
+  const settings = await integrationSettings(auth);
   const internalAuthorized = Boolean(expected && request.headers.get("authorization") === `Bearer ${expected}`);
-  const publicAuthorized = request.headers.get("x-studio-pair-code") === expectedPairCode;
+  const publicAuthorized = settings.enabled && request.headers.get("x-studio-pair-code") === settings.pairCode;
   if (!internalAuthorized && !publicAuthorized) return NextResponse.json({ error: "Integração não autorizada." }, { status: 401, headers: { "access-control-allow-origin": "*" } });
   const payload = await request.json().catch(() => null) as Payload | null;
   if (!payload?.type || !payload.externalId) return NextResponse.json({ error: "Envie type e externalId." }, { status: 400 });
   try {
-    const auth = await token();
     const clientId = `gerador-client-${payload.externalId}`;
     const eventId = `gerador-event-${payload.externalId}`;
     const total = Number(payload.commercial?.total || 0);
@@ -99,13 +118,27 @@ export async function POST(request: Request) {
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type, x-studio-pair-code", "access-control-max-age": "86400" } });
+  return new NextResponse(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, PUT, OPTIONS", "access-control-allow-headers": "content-type, x-studio-pair-code", "access-control-max-age": "86400" } });
 }
 
 export async function GET(request: Request) {
   const pairCode = request.headers.get("x-studio-pair-code");
-  const expectedPairCode = process.env.GERADOR_PAIR_CODE || "Melk21";
-  if (!pairCode || pairCode !== expectedPairCode) return NextResponse.json({ connected: false, error: "Código de conexão inválido." }, { status: 401 });
+  const auth = await token();
+  const settings = await integrationSettings(auth);
+  if (!pairCode || pairCode !== settings.pairCode) return NextResponse.json({ connected: false, error: "Código de conexão inválido." }, { status: 401 });
+  if (!settings.enabled) return NextResponse.json({ connected: false, disabled: true, error: "Integração desconectada." }, { status: 409 });
   if (!process.env.GERADOR_SYNC_SECRET) return NextResponse.json({ connected: false, error: "A chave interna da integração não está configurada." }, { status: 503 });
   return NextResponse.json({ connected: true, application: "Studio Melk Flow", sync: "ativa" }, { headers: { "cache-control": "no-store" } });
+}
+
+export async function PUT(request: Request) {
+  const currentCode = request.headers.get("x-studio-pair-code");
+  const auth = await token();
+  const settings = await integrationSettings(auth);
+  if (!currentCode || currentCode !== settings.pairCode) return NextResponse.json({ error: "Código atual inválido." }, { status: 401 });
+  const body = await request.json().catch(() => null) as { pairCode?: string; enabled?: boolean } | null;
+  const nextCode = String(body?.pairCode || settings.pairCode).trim();
+  if (nextCode.length < 6) return NextResponse.json({ error: "Use um código com pelo menos 6 caracteres." }, { status: 400 });
+  await write("integration_settings", "flow", { pairCode: nextCode, enabled: body?.enabled !== false, updatedAt: new Date().toISOString() }, auth);
+  return NextResponse.json({ connected: body?.enabled !== false, pairCode: nextCode });
 }
