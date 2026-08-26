@@ -358,7 +358,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 
 <nav class="workflow-bar" aria-label="Etapas de criação">
  <button type="button" class="workflow-step active" data-workflow="content" onclick="setWorkflow('content')">Conteúdo</button>
- <button type="button" class="workflow-step" data-workflow="client" onclick="setWorkflow('client')">Cliente</button>
+ <button type="button" class="workflow-step" data-workflow="client" onclick="setWorkflow('client')" hidden>Cliente</button>
  <button type="button" class="workflow-step" data-workflow="options" onclick="setWorkflow('options')">Opções</button>
  <button type="button" class="workflow-step" data-workflow="style" onclick="setWorkflow('style')">Estilo</button>
  <button type="button" class="workflow-step" data-workflow="publish" onclick="setWorkflow('publish')">Publicar</button>
@@ -1363,7 +1363,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 <div class="app-wrap" id="tab-proposta">
 <div class="sidebar">
 
- <div class="supergroup proposal-client-group" data-workflow="client"><div class="supergroup-header" onclick="toggleSupergroup(this)"><span>👤 Cliente e evento</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="supergroup-body"><div class="section"><div class="section-header open" onclick="toggleSection(this)"><span class="section-title">Dados que acompanham a proposta</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="section-body open"><span class="field-hint">Estes dados ficam na proposta, no envio e em Propostas enviadas. Não aparecem como anotação para o cliente.</span><div class="field"><label>Tipo de proposta</label><select id="pc_tipo" onchange="setPropostaTipo(this.value);syncProposalClientFields()"><option value="casamento">Casamento</option><option value="aniversario">Aniversário</option><option value="ensaio">Ensaio</option><option value="corporativo">Evento corporativo</option><option value="geral">Proposta geral</option></select></div><div class="field"><label>Nome do casal / cliente</label><input id="pc_nome" placeholder="Ex.: Mariana & Lucas" oninput="syncProposalClientField('pc_nome','pp_nomeCasalEvento');document.getElementById('pp_nomeCasal').value=this.value;debouncedPropostaPreview()"></div><div class="field"><label>Data do evento</label><input type="date" id="pc_data" oninput="syncProposalClientField('pc_data','pp_dataCasamento');ppPmtGerarParcelas();debouncedPropostaPreview()"><span class="field-hint">A proposta mostra dd/mm/aa.</span></div><div class="field-row"><div class="field"><label>Igreja / cerimônia</label><input id="pc_cerimonia" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_cerimonia','pp_localCerimonia')"></div><div class="field"><label>Local da festa</label><input id="pc_festa" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_festa','pp_localFesta')"></div></div><div class="field-row"><div class="field"><label>WhatsApp do cliente</label><input type="tel" id="pc_whats" placeholder="(11) 99999-9999" oninput="syncProposalClientField('pc_whats','pp_clienteWhats')"></div><div class="field"><label>E-mail do cliente</label><input type="email" id="pc_email" placeholder="cliente@email.com" oninput="syncProposalClientField('pc_email','pp_clienteEmail')"></div></div><div class="field"><label>Validade do orçamento</label><input id="pc_validade" placeholder="Ex.: Válido por 15 dias" oninput="syncProposalClientField('pc_validade','pp_validadeOrcamento');debouncedPropostaPreview()"></div><button class="btn-primary" onclick="syncProposalClientFields();debouncedPropostaPreview();showBizToast('Dados do cliente atualizados na proposta.')">Salvar dados do cliente</button></div></div></div></div></div>
+ <div class="supergroup proposal-client-group" data-workflow="client"><div class="supergroup-header" onclick="toggleSupergroup(this)"><span>👤 Cliente e evento</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="supergroup-body"><div class="section"><div class="section-header open" onclick="toggleSection(this)"><span class="section-title">Dados que acompanham a proposta</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="section-body open"><span class="field-hint">Estes dados ficam na proposta, no envio e em Propostas enviadas. Não aparecem como anotação para o cliente.</span><div class="field"><label>Tipo de proposta</label><select id="pc_tipo" onchange="setPropostaTipo(this.value);syncProposalClientFields()"><option value="casamento">Casamento</option><option value="aniversario">Aniversário</option><option value="ensaio">Ensaio</option><option value="corporativo">Evento corporativo</option><option value="geral">Proposta geral</option></select></div><div class="field"><label>Nome do casal / cliente</label><input id="pc_nome" placeholder="Ex.: Mariana & Lucas" oninput="syncProposalClientField('pc_nome','pp_nomeCasalEvento');document.getElementById('pp_nomeCasal').value=this.value;debouncedPropostaPreview()"></div><div class="field"><label>Data do evento</label><input type="date" id="pc_data" oninput="syncProposalClientField('pc_data','pp_dataCasamento');ppPmtGerarParcelas();debouncedPropostaPreview()"><span class="field-hint">A proposta mostra dd/mm/aa.</span></div><div class="field-row"><div class="field"><label>Igreja / cerimônia</label><input id="pc_cerimonia" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_cerimonia','pp_localCerimonia')"></div><div class="field"><label>Local da festa</label><input id="pc_festa" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_festa','pp_localFesta')"></div></div><div class="field-row"><div class="field"><label>WhatsApp do cliente</label><input type="tel" id="pc_whats" placeholder="(11) 99999-9999" oninput="syncProposalClientField('pc_whats','pp_clienteWhats')"></div><div class="field"><label>E-mail do cliente</label><input type="email" id="pc_email" placeholder="cliente@email.com" oninput="syncProposalClientField('pc_email','pp_clienteEmail')"></div></div><div class="field"><label>Validade do orçamento</label><input id="pc_validade" placeholder="Ex.: Válido por 15 dias" oninput="syncProposalClientField('pc_validade','pp_validadeOrcamento');debouncedPropostaPreview()"></div><button class="btn-primary" onclick="syncProposalClientFields();debouncedPropostaPreview();showBizToast('Dados do cliente atualizados na proposta.')">Salvar dados do cliente</button></div></div></div></div>
 
  <div class="supergroup"><div class="supergroup-header" onclick="toggleSupergroup(this)"><span>✍️ Texto e identidade</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="supergroup-body"><div class="section">
  <div class="section-header open" onclick="toggleSection(this)">
@@ -2494,6 +2494,8 @@ function enhanceAccessibility() {
 }
 
 function setWorkflow(workflow) {
+ const activeTab = document.querySelector('.app-wrap.active');
+ if (workflow === 'client' && (!activeTab || activeTab.id !== 'tab-proposta')) workflow = 'content';
  activeWorkflow = workflow;
  const helper = {
   content: 'Inclua as informações essenciais',
@@ -2509,7 +2511,6 @@ function setWorkflow(workflow) {
  });
  const helperEl = document.getElementById('workflowHelper');
  if (helperEl) helperEl.textContent = helper[workflow];
- const activeTab = document.querySelector('.app-wrap.active');
  if (!activeTab) return;
  if (activeTab.id === 'tab-contrato') {
   let firstVisibleSection = null;
@@ -3629,6 +3630,9 @@ function switchTab(name) {
  if (typeof mobilePreviewClose === 'function') mobilePreviewClose();
  document.querySelectorAll('.app-tab').forEach((t,i) => t.classList.toggle('active', ['web','card','biz','proposta','contrato','entrega'][i] === name));
  document.querySelectorAll('.app-wrap').forEach(w => w.classList.toggle('active', w.id === 'tab-' + name));
+ const clientStep = document.querySelector('.workflow-step[data-workflow="client"]');
+ if (clientStep) clientStep.hidden = name !== 'proposta';
+ if (name !== 'proposta' && activeWorkflow === 'client') activeWorkflow = 'content';
  if (name === 'card') renderCard();
  if (name === 'biz') renderBizPreview();
  if (name === 'proposta') { syncProposalClientFields(); renderPropostaPreview(); }
