@@ -144,7 +144,37 @@ iframe{max-width:min(430px,100%);border-width:5px;border-radius:22px;max-height:
 @media (min-width:901px){ #floatToolbar{display:none !important;}
 }
 @media (min-width:1600px){ .app-wrap{grid-template-columns:440px 1fr;}
-}</style>
+}
+/* ═══════ STUDIO MELK — TEMA EDITORIAL LIMPO ═══════ */
+:root{--ink:#123b31;--ink2:#284b42;--muted:#74726c;--subtle:#b8afa2;--border:#e7dfd4;--bg:#faf8f4;--surface:#fffdfa;--accent:#bf6c62;--green:#0e493a;--green-lt:#eff7f1;--green-br:#c9dfd0;--r:14px;}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);}
+.app-header{min-height:72px;padding:14px 28px;background:linear-gradient(104deg,#082e26,#164d3e);border-bottom:1px solid rgba(255,255,255,.12);}
+.app-header h1{font-family:Georgia,"Times New Roman",serif;font-size:23px;letter-spacing:.08em;font-weight:400;}
+.app-header p{color:rgba(255,255,255,.72);font-size:11px;}
+.shortcut-strip{min-height:46px;padding:7px 28px;background:#fffdfa;border-color:var(--border);}
+.ajustes-gerais-btn{background:var(--accent);border-radius:10px;box-shadow:0 7px 18px rgba(191,108,98,.18);}
+.app-tabs{padding:0 22px;gap:4px;background:#fffdfa;border-bottom-color:var(--border);}
+.app-tab{flex:0 0 auto;color:#68655f;padding:14px 16px;font-size:11px;letter-spacing:.04em;text-transform:none;}
+.app-tab.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:800;}
+.workflow-bar{padding:10px 28px;background:#faf8f4;border-color:var(--border);gap:8px;}
+.workflow-step{border:1px solid transparent;border-radius:999px;padding:8px 14px;color:#5d615b;font-weight:700;}
+.workflow-step.active{background:var(--ink);color:#fff;box-shadow:none;}
+.workflow-helper{font-size:11px;color:#8a8277;}
+.app-wrap{grid-template-columns:minmax(320px,28vw) minmax(0,1fr);}
+.sidebar{background:#fffdfa;border-color:var(--border);padding:10px;}
+.preview-pane{background:radial-gradient(circle at 80% 0,#fff0e9 0,transparent 28%),var(--bg);padding:30px;}
+.supergroup{margin-bottom:9px;border:1px solid #eee5d9;border-radius:12px;background:#fffdfa;overflow:hidden;}
+.supergroup-header{margin:0;padding:13px 14px;border-radius:0;background:#fffdfa;color:var(--ink);font-family:Georgia,"Times New Roman",serif;font-size:15px;}
+.supergroup-header:hover{background:#fcf4ed;}
+.section{border-bottom-color:#f0e9e0;}.section:last-child{border-bottom:none;}
+.section-title{color:#877d71;font-size:10px;}.section-body{padding:0 14px 15px;}
+input[type=text],input[type=tel],input[type=email],input[type=url],input[type=date],input[type=time],select,textarea{background:#fffdfa;border-color:#ded5c9;border-radius:9px;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(191,108,98,.12);}
+.btn-primary{background:var(--accent);border-radius:10px;box-shadow:0 8px 18px rgba(191,108,98,.18);}.btn-secondary{background:#fffdfa;border-color:#dcd2c6;border-radius:10px;color:var(--ink);}.btn-green{background:var(--ink);border-radius:10px;}.btn-add{background:var(--ink);border-radius:9px;}
+.pill.active,.style-btn.on,.ctr-evt-btn.active{background:var(--ink);border-color:var(--ink);}.upload-box{background:#fffdfa;border-color:#d9cfc1;}.preview-label{color:#80786f;}
+#tab-proposta .proposal-client-group{border-color:#e9c3bb;background:linear-gradient(135deg,#fffdfa,#fff4ef);}.proposal-client-group .supergroup-header{background:transparent;color:#9d5149;}.proposal-client-group .section-body{padding-top:5px;}
+@media (max-width:900px){.app-header{padding:10px 14px}.app-tabs{padding:0;gap:0}.app-tab{flex:1;padding:12px 4px;font-size:10px}.workflow-bar{padding:8px 12px}.sidebar{padding:10px}.preview-pane{padding:16px}.app-wrap,.app-wrap.active{grid-template-columns:minmax(260px,36vw) minmax(0,1fr);}}
+</style>
 <style>
 /* ═══════ ABA CONTRATO ═══════ */
 .ctr-evt-btn{padding:8px 6px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:11px;font-weight:500;text-align:center;transition:all .15s;}
@@ -357,6 +387,7 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 
 <nav class="workflow-bar" aria-label="Etapas de criação">
  <button type="button" class="workflow-step active" data-workflow="content" onclick="setWorkflow('content')">Conteúdo</button>
+ <button type="button" class="workflow-step" data-workflow="client" onclick="setWorkflow('client')">Cliente</button>
  <button type="button" class="workflow-step" data-workflow="options" onclick="setWorkflow('options')">Opções</button>
  <button type="button" class="workflow-step" data-workflow="style" onclick="setWorkflow('style')">Estilo</button>
  <button type="button" class="workflow-step" data-workflow="publish" onclick="setWorkflow('publish')">Publicar</button>
@@ -1360,6 +1391,8 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 <!-- ═══════════════════ TAB: PROPOSTA ═══════════════════ -->
 <div class="app-wrap" id="tab-proposta">
 <div class="sidebar">
+
+ <div class="supergroup proposal-client-group" data-workflow="client"><div class="supergroup-header" onclick="toggleSupergroup(this)"><span>👤 Cliente e evento</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="supergroup-body"><div class="section"><div class="section-header open" onclick="toggleSection(this)"><span class="section-title">Dados que acompanham a proposta</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="section-body open"><span class="field-hint">Estes dados ficam na proposta, no envio e em Propostas enviadas. Não aparecem como anotação para o cliente.</span><div class="field"><label>Tipo de proposta</label><select id="pc_tipo" onchange="setPropostaTipo(this.value);syncProposalClientFields()"><option value="casamento">Casamento</option><option value="aniversario">Aniversário</option><option value="ensaio">Ensaio</option><option value="corporativo">Evento corporativo</option><option value="geral">Proposta geral</option></select></div><div class="field"><label>Nome do casal / cliente</label><input id="pc_nome" placeholder="Ex.: Mariana & Lucas" oninput="syncProposalClientField('pc_nome','pp_nomeCasalEvento');document.getElementById('pp_nomeCasal').value=this.value;debouncedPropostaPreview()"></div><div class="field"><label>Data do evento</label><input type="date" id="pc_data" oninput="syncProposalClientField('pc_data','pp_dataCasamento');ppPmtGerarParcelas();debouncedPropostaPreview()"><span class="field-hint">A proposta mostra dd/mm/aa.</span></div><div class="field-row"><div class="field"><label>Igreja / cerimônia</label><input id="pc_cerimonia" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_cerimonia','pp_localCerimonia')"></div><div class="field"><label>Local da festa</label><input id="pc_festa" placeholder="Nome e endereço" oninput="syncProposalClientField('pc_festa','pp_localFesta')"></div></div><div class="field-row"><div class="field"><label>WhatsApp do cliente</label><input type="tel" id="pc_whats" placeholder="(11) 99999-9999" oninput="syncProposalClientField('pc_whats','pp_clienteWhats')"></div><div class="field"><label>E-mail do cliente</label><input type="email" id="pc_email" placeholder="cliente@email.com" oninput="syncProposalClientField('pc_email','pp_clienteEmail')"></div></div><div class="field"><label>Validade do orçamento</label><input id="pc_validade" placeholder="Ex.: Válido por 15 dias" oninput="syncProposalClientField('pc_validade','pp_validadeOrcamento');debouncedPropostaPreview()"></div><button class="btn-primary" onclick="syncProposalClientFields();debouncedPropostaPreview();showBizToast('Dados do cliente atualizados na proposta.')">Salvar dados do cliente</button></div></div></div></div></div>
 
  <div class="supergroup"><div class="supergroup-header" onclick="toggleSupergroup(this)"><span>✍️ Texto e identidade</span><svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="supergroup-body"><div class="section">
  <div class="section-header open" onclick="toggleSection(this)">
@@ -2444,6 +2477,7 @@ window.addEventListener('DOMContentLoaded', function() {
  flixRenderPreview();
  pmtGerarParcelas();
  ppPmtGerarParcelas();
+ syncProposalClientFields();
 });
 
 window.addEventListener('resize', function() { configureAppLayout(); fitFlixPreview(); });
@@ -2462,7 +2496,7 @@ function configureWorkflowGroups() {
  document.querySelectorAll('.app-wrap .supergroup').forEach(function(group) {
   const heading = group.querySelector('.supergroup-header span');
   const title = heading ? heading.textContent.toLowerCase() : '';
-  group.dataset.workflow = /exportar/.test(title) ? 'publish' : /pacotes e preços|opções do cartão|formulário e entrega|qr e mensagem/.test(title) ? 'options' : /fundo|aparência|visual|imagens|galeria/.test(title) ? 'style' : 'content';
+  group.dataset.workflow = /cliente e evento/.test(title) ? 'client' : /exportar/.test(title) ? 'publish' : /pacotes e preços|opções do cartão|formulário e entrega|qr e mensagem/.test(title) ? 'options' : /fundo|aparência|visual|imagens|galeria/.test(title) ? 'style' : 'content';
  });
 }
 
@@ -2492,6 +2526,7 @@ function setWorkflow(workflow) {
  activeWorkflow = workflow;
  const helper = {
   content: 'Inclua as informações essenciais',
+  client: 'Cadastre os dados que acompanham a proposta e o envio',
   options: 'Ajuste links, formulário, entrega e detalhes do projeto',
  style: 'Escolha um visual e refine os detalhes',
  publish: 'Revise e gere seu arquivo ou link'
@@ -3625,10 +3660,19 @@ function switchTab(name) {
  document.querySelectorAll('.app-wrap').forEach(w => w.classList.toggle('active', w.id === 'tab-' + name));
  if (name === 'card') renderCard();
  if (name === 'biz') renderBizPreview();
- if (name === 'proposta') renderPropostaPreview();
+ if (name === 'proposta') { syncProposalClientFields(); renderPropostaPreview(); }
  if (name === 'contrato') initContratoEditor();
  applyPreviewZoom(name);
  setWorkflow(activeWorkflow);
+}
+
+function syncProposalClientField(from,to){const source=document.getElementById(from),target=document.getElementById(to);if(source&&target)target.value=source.value;}
+function syncProposalClientFields(){
+ const studio=document.getElementById('pp_estudioNome');
+ if(studio&&!studio.value.trim())studio.value='Studio Melk';
+ const map={pc_tipo:'pp_tipoProposta',pc_nome:'pp_nomeCasalEvento',pc_data:'pp_dataCasamento',pc_cerimonia:'pp_localCerimonia',pc_festa:'pp_localFesta',pc_whats:'pp_clienteWhats',pc_email:'pp_clienteEmail',pc_validade:'pp_validadeOrcamento'};
+ Object.keys(map).forEach(function(from){const target=document.getElementById(map[from]),source=document.getElementById(from);if(source&&target){if(source.value)target.value=source.value;else source.value=target.value||'';}});
+ const name=document.getElementById('pc_nome');const intro=document.getElementById('pp_nomeCasal');if(name&&intro&&name.value)intro.value=name.value;
 }
 
 // ═══════════════════════ MÓDULO CONTRATO ════════════════════════════
@@ -9748,13 +9792,22 @@ function toggleSentProposalFeatured(id){
 }
 function removeSentProposal(id){localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(sentProposals().filter(function(entry){return entry.id!==id;})));renderSentProposals();}
 function renderSentProposals(){
- const box=document.getElementById('sentProposalsList');if(!box)return;const list=sentProposals().sort(function(a,b){return Number(!!b.featured)-Number(!!a.featured)||String(b.createdAt).localeCompare(String(a.createdAt));});
- box.innerHTML=list.length?list.map(function(item){const created=new Date(item.createdAt).toLocaleDateString('pt-BR');const wa=String(item.whatsapp||'').replace(/\D/g,'');const message='Olá, '+item.name+'! Gostaria de saber se conseguiu analisar nossa proposta. Ficamos à disposição para ajustar qualquer detalhe.';return '<article style="border:1px solid #ddd;border-radius:12px;padding:12px;margin:8px 0;background:'+(item.featured?'#fff8df':'#fff')+'"><strong style="display:block">'+escapeHTML(item.name)+'</strong><small>'+escapeHTML(item.eventDate||'Data a confirmar')+' · gerada em '+created+' · '+escapeHTML(item.format)+'</small><div style="margin-top:8px;padding:9px;background:#faf9f6;border-radius:8px;font-size:12px"><b>Dados do cliente</b><br>WhatsApp: '+escapeHTML(item.whatsapp||'não informado')+'<br>E-mail: '+escapeHTML(item.email||'não informado')+'</div><label style="display:grid;gap:4px;margin-top:8px;font-size:12px"><b>Anotações de progresso (internas)</b><textarea data-note="'+item.id+'" rows="2" placeholder="Ex.: follow-up feito, aguardando retorno...">'+escapeHTML(item.notes||'')+'</textarea></label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">'+(item.url?'<a class="btn-secondary" style="text-decoration:none" target="_blank" href="'+encodeURI(item.url)+'">Abrir link</a>':'')+(wa?'<button class="btn-secondary" onclick="followupSentProposal(\''+item.id+'\')">📲 Follow-up WhatsApp</button>':'')+'<button class="btn-secondary" onclick="toggleSentProposalFeatured(\''+item.id+'\')">'+(item.featured?'Remover destaque':'Destacar')+'</button><button class="btn-secondary" onclick="saveSentProposalNote(\''+item.id+'\')">Salvar anotação</button><button class="btn-secondary" onclick="removeSentProposal(\''+item.id+'\')">Remover da lista</button></div></article>';}).join(''):'<p style="color:#777">Nenhuma proposta gerada neste aparelho ainda.</p>';
+ const box=document.getElementById('sentProposalsList');if(!box)return;
+ const list=sentProposals().sort(function(a,b){return Number(!!b.featured)-Number(!!a.featured)||String(b.createdAt).localeCompare(String(a.createdAt));});
+ box.innerHTML=list.length?list.map(function(item){
+  const created=new Date(item.createdAt).toLocaleDateString('pt-BR');
+  return '<article style="border:1px solid #ddd;border-radius:14px;padding:14px;margin:10px 0;background:'+(item.featured?'#fff8df':'#fff')+'">'
+   +'<div style="display:flex;justify-content:space-between;gap:10px"><div><strong style="display:block;font-family:Georgia,serif;font-size:18px">'+escapeHTML(item.name)+'</strong><small>'+escapeHTML(item.eventDate||'Data a confirmar')+' · gerada em '+created+' · '+escapeHTML(item.format)+'</small></div>'+(item.featured?'<span style="color:#b76459">★ Destaque</span>':'')+'</div>'
+   +'<div style="margin-top:10px;padding:10px;background:#faf9f6;border-radius:9px;font-size:12px"><b>Dados do cliente</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px"><input data-wa="'+item.id+'" value="'+escapeHTML(item.whatsapp||'')+'" placeholder="WhatsApp do cliente"><input data-email="'+item.id+'" value="'+escapeHTML(item.email||'')+'" placeholder="E-mail do cliente"></div><button class="btn-secondary" style="margin-top:7px" onclick="saveSentProposalContact(\''+item.id+'\')">Salvar contato</button></div>'
+   +'<label style="display:grid;gap:4px;margin-top:10px;font-size:12px"><b>Acompanhamento interno</b><textarea data-note="'+item.id+'" rows="2" placeholder="Ex.: follow-up feito, aguardando retorno...">'+escapeHTML(item.notes||'')+'</textarea></label>'
+   +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+(item.url?'<a class="btn-secondary" style="text-decoration:none" target="_blank" href="'+encodeURI(item.url)+'">Abrir link</a>':'')+'<button class="btn-secondary" onclick="followupSentProposal(\''+item.id+'\')">📲 Novo contato · WhatsApp</button><button class="btn-secondary" onclick="toggleSentProposalFeatured(\''+item.id+'\')">'+(item.featured?'Remover destaque':'Destacar')+'</button><button class="btn-secondary" onclick="saveSentProposalNote(\''+item.id+'\')">Salvar anotação</button><button class="btn-secondary" onclick="removeSentProposal(\''+item.id+'\')">Remover da lista</button></div></article>';
+ }).join(''):'<p style="color:#777">Nenhuma proposta gerada neste aparelho ainda.</p>';
 }
+function saveSentProposalContact(id){const wa=document.querySelector('[data-wa="'+id+'"]'),email=document.querySelector('[data-email="'+id+'"]'),list=sentProposals(),item=list.find(function(entry){return entry.id===id;});if(item){item.whatsapp=wa?wa.value.trim():'';item.email=email?email.value.trim():'';localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(list));if(typeof showBizToast==='function')showBizToast('Contato salvo para os próximos follow-ups.');}}
 function saveSentProposalNote(id){const el=document.querySelector('[data-note="'+id+'"]');const list=sentProposals();const item=list.find(function(entry){return entry.id===id;});if(item&&el){item.notes=el.value;localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(list));if(typeof showBizToast==='function')showBizToast('Anotação salva somente para a equipe.');}}
-function followupSentProposal(id){const item=sentProposals().find(function(entry){return entry.id===id;});if(!item||!item.whatsapp)return;const msg='Olá, '+item.name+'! Gostaria de saber se conseguiu analisar nossa proposta. Ficamos à disposição para ajustar qualquer detalhe.';window.open('https://wa.me/'+String(item.whatsapp).replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');if(typeof showBizToast==='function')showBizToast('Follow-up preparado no WhatsApp.');}
+function followupSentProposal(id){const item=sentProposals().find(function(entry){return entry.id===id;});if(!item||!String(item.whatsapp||'').replace(/\D/g,'')){alert('Salve primeiro o WhatsApp do cliente nesta proposta.');return;}const msg='Olá, '+item.name+'! Gostaria de saber se conseguiu analisar nossa proposta. Ficamos à disposição para ajustar qualquer detalhe.';window.open('https://wa.me/'+String(item.whatsapp).replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');if(typeof showBizToast==='function')showBizToast('Follow-up preparado no WhatsApp.');}
 function openSentProposals(){
- let modal=document.getElementById('sentProposalsModal');if(!modal){modal=document.createElement('div');modal.id='sentProposalsModal';modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';modal.innerHTML='<section style="background:#f8f7f3;border-radius:18px;padding:22px;width:min(680px,100%);max-height:85vh;overflow:auto"><div style="display:flex;justify-content:space-between;gap:12px"><div><h2>Propostas enviadas</h2><p style="color:#666;font-size:13px">Links, HTMLs e PDFs gerados. Até 6 podem ficar em destaque.</p></div><button class="btn-secondary" onclick="document.getElementById(\'sentProposalsModal\').style.display=\'none\'">Fechar</button></div><div id="sentProposalsList"></div></section>';document.body.appendChild(modal);}else modal.style.display='flex';renderSentProposals();
+ let modal=document.getElementById('sentProposalsModal');if(!modal){modal=document.createElement('div');modal.id='sentProposalsModal';modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';modal.innerHTML='<section style="background:#f8f7f3;border-radius:18px;padding:22px;width:min(880px,100%);max-height:85vh;overflow:auto"><div style="display:flex;justify-content:space-between;gap:12px"><div><h2 style="font-family:Georgia,serif;margin:0">Propostas enviadas</h2><p style="color:#666;font-size:13px">Acompanhe os links, registre o progresso e faça novo contato. Até 6 podem ficar em destaque.</p></div><button class="btn-secondary" onclick="document.getElementById(\'sentProposalsModal\').style.display=\'none\'">Fechar</button></div><div id="sentProposalsList"></div></section>';document.body.appendChild(modal);}else modal.style.display='flex';renderSentProposals();
 }
 
 async function publishBiz(){
