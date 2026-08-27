@@ -19,7 +19,6 @@ a{color:inherit;}
 .shortcut-toggle{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 10px;font-size:11px;color:var(--muted);cursor:pointer;}
 .shortcut-popover{display:none;position:absolute;right:18px;top:34px;z-index:50;width:min(330px,calc(100vw - 36px));padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);font-size:11px;color:var(--ink2);}
 .shortcut-popover.open{display:block;}
-.back-top{position:fixed;right:16px;bottom:16px;z-index:60;width:32px;height:32px;border:1px solid var(--border);border-radius:50%;background:#fff;color:var(--muted);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.1);}
 .app-tabs{display:flex;background:#1c1c1c;border-bottom:1px solid #333;}
 .app-tab{flex:1;padding:11px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
 .app-tab.active{color:#fff;border-bottom-color:#fff;}
@@ -234,8 +233,6 @@ body.mobile-mode.mobile-preview-active #tab-contrato .preview-pane{padding:0 !im
 body.mobile-mode.mobile-preview-active #contratoEditorArea{overflow:visible !important;height:auto !important;flex:none !important;display:block !important;}
 body.mobile-mode.mobile-preview-active #contratoToolbar{position:sticky;top:0;z-index:5;}
 body.mobile-mode.mobile-preview-active #contratoEditor{overflow:visible !important;height:auto !important;flex:none !important;padding:16px !important;}
-body.mobile-mode .back-top{bottom:140px;right:14px;z-index:65;width:38px;height:38px;}
-body.mobile-mode.mobile-preview-active .back-top{display:none;}
 
 /* ── Barra de acesso rápido por cartão (modo mobile) ── */
 #mobileQuickBar{display:none;position:fixed;left:0;right:0;bottom:calc(52px + env(safe-area-inset-bottom,0px));z-index:62;background:#181818;border-top:1px solid #2a2a2a;padding:5px 8px;gap:5px;justify-content:center;overflow-x:auto;}
@@ -10020,10 +10017,8 @@ function importBizJSON(evt) {
  reader.readAsText(file);
 }
 </script>
-<button type="button" class="back-top" title="Voltar ao início dos menus" onclick="scrollMenusTop()">↑</button>
 <script>
 function toggleShortcutPopover(){var el=document.getElementById('shortcutPopover');if(el)el.classList.toggle('open');}
-function scrollMenusTop(){document.querySelectorAll('.sidebar').forEach(function(el){el.scrollTo({top:0,behavior:'smooth'});});window.scrollTo({top:0,behavior:'smooth'});}
 window.addEventListener('keydown',function(evt){if(!document.getElementById('tab-web')||!document.getElementById('tab-web').classList.contains('active')||!photoWeb) return;if(/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;var k=evt.key.toLowerCase();if(k!=='a'&&k!=='d')return;var input=document.getElementById('f_fotoHeight');if(!input)return;input.value=Math.max(220,Math.min(900,Number(input.value)+(k==='a'?12:-12)));updateRange('f_fotoHeight','rng_fotoHeight','px');debouncedPreview();evt.preventDefault();});
 </script>
 
