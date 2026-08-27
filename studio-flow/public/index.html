@@ -1546,6 +1546,16 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
  </div>
  <div class="section-body open">
  <div class="field">
+ <label>Modelo visual da proposta</label>
+ <span class="field-hint" style="display:block;margin-bottom:8px;">O conteúdo, os pacotes, o pagamento e o envio continuam iguais. O modelo muda somente a apresentação.</span>
+ <div class="pill-row" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;">
+ <div class="pill active" data-propostalayout="classico" onclick="setPropostaLayout('classico')">Clássico atual</div>
+ <div class="pill" data-propostalayout="casamento" onclick="setPropostaLayout('casamento')">Casamento editorial</div>
+ <div class="pill" data-propostalayout="ensaio" onclick="setPropostaLayout('ensaio')">Ensaio com galeria</div>
+ <div class="pill" data-propostalayout="corporativo" onclick="setPropostaLayout('corporativo')">Corporativo premium</div>
+ </div>
+ </div>
+ <div class="field">
  <label>Estilos prontos</label>
  <div class="pill-row">
  <div class="pill" data-propostatema="dourado" onclick="setPropostaTema('dourado')">Dourado</div>
@@ -8846,6 +8856,7 @@ function removePropostaCampoExtra(idx) {
 }
 renderPropostaCamposExtrasBox();
 
+let propostaLayout = 'classico';
 let propostaPhotos = [null, null, null];
 let propostaPhotoPos = ['apos_titulo', 'apos_intro', 'final'];
 let propostaPhotoSize = [420, 420, 420];
@@ -8900,6 +8911,15 @@ const PROPOSTA_TEMAS = {
  escuro: { fundo: '#171512', destaque: '#232019', accent: '#c9a24a', texto: '#ece4d8' },
  cinzaDourado: { fundo: '#1e1e1e', destaque: '#2a2a2a', accent: '#c9a24a', texto: '#e8e6e1' }
 };
+
+function setPropostaLayout(nome) {
+ if (!['classico', 'casamento', 'ensaio', 'corporativo'].includes(nome)) return;
+ propostaLayout = nome;
+ document.querySelectorAll('[data-propostalayout]').forEach(function(el) {
+  el.classList.toggle('active', el.dataset.propostalayout === nome);
+ });
+ debouncedPropostaPreview();
+}
 
 function setPropostaTema(nome) {
  const t = PROPOSTA_TEMAS[nome];
@@ -9098,6 +9118,7 @@ function getPropostaData() {
  const shortProposalDate = /^\d{4}-\d{2}-\d{2}$/.test(rawProposalDate) ? rawProposalDate.slice(8,10)+'/'+rawProposalDate.slice(5,7)+'/'+rawProposalDate.slice(2,4) : rawProposalDate;
  return {
  integrationId: propostaIntegrationId,
+ layout: propostaLayout,
  syncUrl: 'https://studio-melk-next.vercel.app/api/integrations/gerador',
  pairCode: localStorage.getItem('studio_melk_manager_pair_code') || 'Melk21',
  tipoProposta: propostaTipo,
@@ -9175,6 +9196,9 @@ function generatePropostaHTML(d, editMode) {
  const cardBg = cores.destaque || '#ffffff';
  const text = cores.texto || '#2e2e2e';
  const font = "'Cormorant Garamond',Georgia,serif";
+ const layout = d.layout || 'classico';
+ const heroPhoto = d.photos && d.photos[0] ? d.photos[0] : '';
+ const heroStyle = heroPhoto ? 'background-image:linear-gradient(rgba(8,25,20,.18),rgba(8,25,20,.72)),url(' + JSON.stringify(heroPhoto) + ');' : '';
 
  const waLink = d.wa ? 'https://wa.me/' + d.wa : '';
  const igLink = d.instagram ? 'https://instagram.com/' + d.instagram.replace(/^@/, '') : '';
@@ -9194,6 +9218,7 @@ function generatePropostaHTML(d, editMode) {
  function fotoBlocoHTML(idx) {
  const url = d.photos[idx];
  if (!url) return '';
+ if (idx === 0 && layout !== 'classico') return '';
  const w = d.photoSize[idx] || 420;
  return '<div style="text-align:center;margin:28px 0;"><img src="' + url + '" style="max-width:' + w + 'px;width:100%;height:auto;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.12);"></div>';
  }
@@ -9248,10 +9273,31 @@ function generatePropostaHTML(d, editMode) {
  '.btnPrimary{background:' + accent + ';color:#fff;}' +
  '.btnGhost{background:transparent;color:' + text + ';border:1.5px solid #ddd !important;}' +
  '.resumoLine{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed #ddd;}' +
+ '.layout-casamento .wrap,.layout-ensaio .wrap,.layout-corporativo .wrap{max-width:980px;padding-top:28px;}' +
+ '.layout-casamento .hero,.layout-corporativo .hero{min-height:520px;padding:70px 48px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;text-align:left;border-radius:4px;background-color:#173b31;background-size:cover;background-position:center;overflow:hidden;}' +
+ '.layout-casamento .hero h1,.layout-corporativo .hero h1{font-size:58px!important;max-width:650px;color:#fff!important;text-align:left;line-height:1.02;}' +
+ '.layout-casamento .hero p,.layout-corporativo .hero p{color:#fff!important;text-align:left;margin:0;max-width:540px;}' +
+ '.layout-casamento .hero .estudio,.layout-corporativo .hero .estudio,.layout-casamento .hero .icons a,.layout-corporativo .hero .icons a{color:#fff!important;}' +
+ '.layout-casamento .intro{margin-top:-58px;margin-left:38px;margin-right:38px;position:relative;padding:32px 38px;text-align:center;}' +
+ '.layout-casamento .pacoteCard{display:inline-flex!important;vertical-align:top;flex-direction:column;width:calc(33.333% - 13px);margin:8px 5px!important;min-height:390px;}' +
+ '.layout-casamento .pacoteCard .pacoteBtn{margin-top:auto;}' +
+ '.layout-ensaio .hero{display:grid;grid-template-columns:1fr 1.15fr;min-height:460px;text-align:left;align-items:center;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:4px;overflow:hidden;}' +
+ '.layout-ensaio .hero:after{content:"";display:block;align-self:stretch;background-color:#ebe4da;background-image:var(--hero-image);background-size:cover;background-position:center;}' +
+ '.layout-ensaio .hero>*{grid-column:1;padding-left:44px;padding-right:32px;}' +
+ '.layout-ensaio .hero h1{font-size:52px!important;line-height:1.02;text-align:left;}' +
+ '.layout-ensaio .hero p{text-align:left;margin:0;}' +
+ '.layout-ensaio .intro{border:0;background:transparent;text-align:center;max-width:760px;margin:32px auto;}' +
+ '.layout-ensaio .pacoteCard{border-radius:4px!important;}' +
+ '.layout-corporativo{background:#f3f1ed;}' +
+ '.layout-corporativo .hero{background-color:#071613;min-height:460px;}' +
+ '.layout-corporativo .intro{border-radius:0;margin-top:28px;box-shadow:inset 0 2px 0 ' + accent + ';}' +
+ '.layout-corporativo .section-title{text-align:left;text-transform:uppercase;letter-spacing:.12em;font-family:\'DM Sans\',sans-serif;font-size:14px;}' +
+ '.layout-corporativo .pacoteCard{border-radius:4px!important;box-shadow:inset 0 2px 0 ' + accent + ';}' +
+ '@media(max-width:720px){.layout-casamento .hero,.layout-corporativo .hero{min-height:430px;padding:38px 24px}.layout-casamento .hero h1,.layout-corporativo .hero h1{font-size:42px!important}.layout-casamento .pacoteCard{display:flex!important;width:100%;margin:8px 0!important}.layout-ensaio .hero{display:flex;flex-direction:column;padding:38px 24px}.layout-ensaio .hero:after{width:100%;min-height:280px;order:-1;margin-bottom:28px}.layout-ensaio .hero>*{padding-left:0;padding-right:0}.layout-ensaio .hero h1{font-size:40px!important}}' +
  '@media print{.bottombar,.modalOverlay{display:none !important;}}' +
- '</style></head><body>' +
+ '</style></head><body class="layout-' + layout + '">' +
  '<div class="wrap">' +
- '<div class="hero">' +
+ '<div class="hero" style="' + (layout === 'ensaio' ? (heroPhoto ? '--hero-image:url(' + JSON.stringify(heroPhoto) + ');' : '') : heroStyle) + '">' +
  (d.logo ? '<img data-editfield="pp_logo" src="' + d.logo + '" style="max-width:' + d.logoSize + 'px;max-height:' + d.logoSize + 'px;object-fit:contain;margin-bottom:6px;' + (editMode?'cursor:pointer;':'') + '">' : ('<div data-editfield="pp_estudioNome" class="estudio" style="' + txtStyle('estudioNome', accent) + (editMode?'cursor:pointer;':'') + '">' + d.estudioNome + '</div>')) +
  '<h1 data-editfield="pp_heroTitulo" style="' + txtStyle('heroTitulo', text) + (editMode?'cursor:pointer;':'') + '">' + d.heroTitulo + '</h1>' +
  '<p data-editfield="pp_heroSubtitulo" style="' + txtStyle('heroSubtitulo', text) + (editMode?'cursor:pointer;':'') + '">' + d.heroSubtitulo + '</p>' +
@@ -9645,6 +9691,8 @@ function applyPropostaData(d) {
  document.getElementById('pp_localCasamento').value = d.localCasamento || '';
  document.getElementById('pp_validadeOrcamento').value = d.validadeOrcamento || '';
  propostaTextStyle = d.textStyle || propostaTextStyle;
+ propostaLayout = d.layout || 'classico';
+ setPropostaLayout(propostaLayout);
  propostaLogo = d.logo || null;
  document.getElementById('pp_ativoFoto').checked = d.ativoFoto !== false;
  document.getElementById('pp_ativoFilme').checked = d.ativoFilme !== false;
