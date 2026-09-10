@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { createSign } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
 const projectId = "studio-5279929289-498c5";
 const apiKey = process.env.FIREBASE_WEB_API_KEY || "";
+const tokenUrl = "https://oauth2.googleapis.com/token";
+const firestoreScope = "https://www.googleapis.com/auth/datastore";
 
 type Payload = {
   type: "lead" | "proposal" | "contract";
@@ -24,6 +27,26 @@ function normalizedDate(value: unknown) {
 }
 
 async function token() {
+  const serviceProjectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  if (serviceProjectId && clientEmail && privateKey) {
+    const now = Math.floor(Date.now() / 1000);
+    const encodePart = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const header = encodePart({ alg: "RS256", typ: "JWT" });
+    const claim = encodePart({ iss: clientEmail, scope: firestoreScope, aud: tokenUrl, iat: now, exp: now + 3600 });
+    const signer = createSign("RSA-SHA256");
+    signer.update(`${header}.${claim}`);
+    signer.end();
+    const assertion = `${header}.${claim}.${signer.sign(privateKey).toString("base64url")}`;
+    const response = await fetch(tokenUrl, {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }), cache: "no-store",
+    });
+    const body = await response.json() as { access_token?: string };
+    if (!response.ok || !body.access_token) throw new Error("Não foi possível autenticar a integração privada.");
+    return body.access_token;
+  }
   if (!apiKey) throw new Error("A chave pública do Firebase não está configurada no servidor.");
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ returnSecureToken: true }), cache: "no-store",
