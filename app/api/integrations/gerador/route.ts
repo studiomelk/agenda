@@ -7,6 +7,7 @@ const projectId = "studio-5279929289-498c5";
 const apiKey = process.env.FIREBASE_WEB_API_KEY || "";
 const tokenUrl = "https://oauth2.googleapis.com/token";
 const firestoreScope = "https://www.googleapis.com/auth/datastore";
+const compatibilityUrl = process.env.LEGACY_MANAGER_SYNC_URL || "https://studio-melk-next.vercel.app/api/integrations/gerador";
 
 type Payload = {
   type: "lead" | "proposal" | "contract";
@@ -17,6 +18,40 @@ type Payload = {
   contract?: { url?: string; signed?: boolean };
   source?: { channel?: string; url?: string; format?: string; title?: string };
 };
+
+function hasPrivateFirebaseAccess() {
+  return Boolean(
+    (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+    || apiKey,
+  );
+}
+
+async function compatibilityResponse(request: Request) {
+  const headers: Record<string, string> = {};
+  const authorization = request.headers.get("authorization");
+  const pairCode = request.headers.get("x-studio-pair-code");
+  const contentType = request.headers.get("content-type");
+  if (authorization) headers.authorization = authorization;
+  if (pairCode) headers["x-studio-pair-code"] = pairCode;
+  if (contentType) headers["content-type"] = contentType;
+  try {
+    const upstream = await fetch(compatibilityUrl, {
+      method: request.method,
+      headers,
+      body: request.method === "GET" ? undefined : await request.text(),
+      cache: "no-store",
+    });
+    const responseHeaders = new Headers({
+      "access-control-allow-origin": "*",
+      "cache-control": "no-store",
+      "content-type": upstream.headers.get("content-type") || "application/json",
+      "x-studio-integration-mode": "compatibility",
+    });
+    return new NextResponse(await upstream.text(), { status: upstream.status, headers: responseHeaders });
+  } catch {
+    return NextResponse.json({ error: "A integração de compatibilidade não respondeu." }, { status: 502 });
+  }
+}
 
 function normalizedDate(value: unknown) {
   const text = String(value || "").trim();
@@ -107,6 +142,7 @@ async function integrationSettings(auth: string) {
 }
 
 export async function POST(request: Request) {
+  if (!hasPrivateFirebaseAccess()) return compatibilityResponse(request);
   const expected = process.env.GERADOR_SYNC_SECRET;
   const auth = await token();
   const internalAuthorized = Boolean(expected && request.headers.get("authorization") === `Bearer ${expected}`);
@@ -144,6 +180,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  if (!hasPrivateFirebaseAccess()) return compatibilityResponse(request);
   const pairCode = request.headers.get("x-studio-pair-code");
   const auth = await token();
   const settings = await integrationSettings(auth);
@@ -155,6 +192,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  if (!hasPrivateFirebaseAccess()) return compatibilityResponse(request);
   const currentCode = request.headers.get("x-studio-pair-code");
   const auth = await token();
   const settings = await integrationSettings(auth);
