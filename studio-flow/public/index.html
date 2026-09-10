@@ -202,6 +202,9 @@ iframe{max-width:min(430px,100%);border-width:5px;border-radius:22px;max-height:
 </style>
 <style>
 /* ═══════ MODO MOBILE (toggle manual — reaproveita formulários e motor de arraste já existentes) ═══════ */
+body.embed-mode .app-header{display:none;}
+body.embed-mode .back-top{display:none;}
+body.embed-mode .shortcut-strip{position:sticky;top:0;z-index:80;}
 body.mobile-mode{padding-bottom:60px;}
 body.mobile-mode .app-header{padding:10px 14px;}
 body.mobile-mode .app-header p{display:none;}
@@ -326,6 +329,9 @@ body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+<script>
+if (new URLSearchParams(window.location.search).get('embed') === '1') document.body.classList.add('embed-mode');
+</script>
 
 <div class="app-header">
  <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="4" fill="white" fill-opacity=".15"/><path d="M5 10h10M10 5v10" stroke="white" stroke-width="1.5"/></svg>
@@ -2070,7 +2076,7 @@ Aproveite sua entrega e preserve esses momentos especiais com segurança.</texta
 
  <h3 style="font-size:13px;font-weight:700;margin:22px 0 8px;color:#333;">↔ Integração com Studio Melk Manager</h3>
  <p style="font-size:12px;line-height:1.5;color:#777;margin:0 0 10px;">Use o mesmo código nos dois aplicativos. Depois de conectado, você poderá enviar uma proposta ou contrato para o CRM sem baixar arquivos.</p>
- <div class="field"><label>Código de conexão</label><input type="password" id="sm_pairCode" autocomplete="off" placeholder="Ex.: Melk21"><span class="field-hint">O código fica salvo somente neste navegador. A chave interna de segurança fica protegida no servidor.</span></div>
+ <div class="field"><label>Código de conexão</label><input type="password" id="sm_pairCode" autocomplete="off" placeholder="Digite o código configurado no Flow"><span class="field-hint">O código fica salvo somente neste navegador. A chave interna de segurança fica protegida no servidor.</span></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><button class="btn-secondary" type="button" onclick="saveStudioManagerConnection()">Salvar conexão</button><button class="btn-secondary" type="button" onclick="testStudioManagerConnection()">Testar conexão</button></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px;"><button class="btn-green" type="button" onclick="sendToStudioManager('proposal')">Enviar proposta ao CRM</button><button class="btn-green" type="button" onclick="sendToStudioManager('contract')">Enviar contrato ao CRM</button></div>
  <span class="field-hint" id="sm_connectionStatus" style="display:block;margin-top:8px;"></span>
@@ -9116,8 +9122,8 @@ function getPropostaData() {
  return {
  integrationId: propostaIntegrationId,
  layout: propostaLayout,
- syncUrl: 'https://studio-melk-next.vercel.app/api/integrations/gerador',
- pairCode: localStorage.getItem('studio_melk_manager_pair_code') || 'Melk21',
+ syncUrl: 'https://gerador-studio-melk.vercel.app/api/sync',
+ publicToken: '',
  tipoProposta: propostaTipo,
  heroTitulo: document.getElementById('pp_heroTitulo').value.trim() || 'Transformando Histórias em Memórias Afetivas',
  heroSubtitulo: document.getElementById('pp_heroSubtitulo').value.trim() || 'Com anos de experiência, materializamos o sonho de vocês com excelência e sensibilidade.',
@@ -9320,7 +9326,7 @@ function generatePropostaHTML(d, editMode) {
  '<div id="modalConteudo"></div>' +
  '</div></div>' +
 
- '<script>' + getPropostaFunilScript(d.wa, d.emailNotificacao, d.estudioNome, d.camposExtras, d.dataCasamento, d.localCasamento, d.validadeOrcamento, d.syncUrl, d.pairCode, d.integrationId, d.clienteWhats, d.clienteEmail, d.localCerimonia, d.localFesta) + '<\/script>' +
+ '<script>' + getPropostaFunilScript(d.wa, d.emailNotificacao, d.estudioNome, d.camposExtras, d.dataCasamento, d.localCasamento, d.validadeOrcamento, d.syncUrl, d.publicToken, d.integrationId, d.clienteWhats, d.clienteEmail, d.localCerimonia, d.localFesta) + '<\/script>' +
  (editMode ? getPropostaClickToEditScript() : '') +
  '</body></html>';
 }
@@ -9379,7 +9385,7 @@ function getPropostaClickToEditScript() {
  '<\/script>';
 }
 
-function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposExtras, dataCasamento, localCasamento, validadeOrcamento, syncUrl, pairCode, integrationId, clienteWhats, clienteEmail, localCerimonia, localFesta) {
+function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposExtras, dataCasamento, localCasamento, validadeOrcamento, syncUrl, publicToken, integrationId, clienteWhats, clienteEmail, localCerimonia, localFesta) {
  return '' +
  'const SCRIPT_URL_PP = "' + SCRIPT_URL + '";' +
  'const WA_ESTUDIO = "' + (waNumero || '') + '";' +
@@ -9388,7 +9394,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'const CAMPOS_EXTRAS_PP = ' + JSON.stringify(camposExtras || []) + ';' +
  'const VALIDADE_PP = ' + JSON.stringify(validadeOrcamento || '') + ';' +
  'const STUDIO_SYNC_URL_PP = ' + JSON.stringify(syncUrl || '') + ';' +
- 'const STUDIO_PAIR_CODE_PP = ' + JSON.stringify(pairCode || '') + ';' +
+ 'const STUDIO_PUBLIC_TOKEN_PP = ' + JSON.stringify(publicToken || '') + ';' +
  'const STUDIO_EXTERNAL_ID_PP = ' + JSON.stringify(integrationId || '') + ';' +
  'let estado = { selFoto: null, selFilme: null, selAddons: [], step: 1, totalManual: null, paymentCount: 1, paymentMethod: "Pix", paymentDates: [], paymentValues: [] };' +
  'const contratante = { dataCasamento: "' + (dataCasamento || '').replace(/"/g, '\\"') + '", localCerimonia: ' + JSON.stringify(localCerimonia || localCasamento || '') + ', localFesta: ' + JSON.stringify(localFesta || '') + ', contratanteWhats: ' + JSON.stringify(clienteWhats || '') + ', contratanteEmail: ' + JSON.stringify(clienteEmail || '') + ' };' +
@@ -9618,7 +9624,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' try {' +
  '  const serviceParts = [pacoteFotoNome !== "-" ? "Fotografia — " + pacoteFotoNome : "", pacoteFilmeNome !== "-" ? "Filmagem — " + pacoteFilmeNome : "", addonsNomes !== "-" ? "Adicionais — " + addonsNomes : ""].filter(Boolean);' +
  '  const crmPayload = { type:"contract", externalId:STUDIO_EXTERNAL_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, contract:{url:location.href,signed:false}, source:{channel:"resposta-link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Contrato originado pela resposta da proposta"} };' +
- '  const syncResponse = await fetch(STUDIO_SYNC_URL_PP,{method:"POST",headers:{"content-type":"application/json","x-studio-pair-code":STUDIO_PAIR_CODE_PP},body:JSON.stringify(crmPayload)});' +
+ '  const syncResponse = await fetch(STUDIO_SYNC_URL_PP,{method:"POST",headers:{"content-type":"application/json","x-studio-public-token":STUDIO_PUBLIC_TOKEN_PP},body:JSON.stringify(crmPayload)});' +
  '  const syncBody = await syncResponse.json().catch(function(){return {};});' +
  '  if(!syncResponse.ok) throw new Error(syncBody.error||"O CRM recusou o envio.");' +
  '  syncMessage = "✓ Contrato recebido. Agenda e financeiro foram criados no Studio Melk Flow.";' +
@@ -9636,8 +9642,24 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'calcularTotal();';
 }
 
+async function issuePublicSyncToken(scope, externalId) {
+ const pairCode=localStorage.getItem('studio_melk_manager_pair_code') || '';
+ if(!pairCode)return '';
+ const query='?issue=public-token&scope='+encodeURIComponent(scope)+(externalId?'&externalId='+encodeURIComponent(externalId):'');
+ const response=await fetch('/api/sync'+query,{headers:{'x-studio-pair-code':pairCode}});
+ const body=await response.json().catch(function(){return {};});
+ if(!response.ok)throw new Error(body.error||'Não foi possível proteger a integração da página.');
+ return body.token||'';
+}
+
+async function preparePublicPropostaData() {
+ const d=getPropostaData();
+ d.publicToken=await issuePublicSyncToken('contract',d.integrationId);
+ return d;
+}
+
 async function downloadPropostaHTML() {
- const d = getPropostaData();
+ const d = await preparePublicPropostaData();
  const html = generatePropostaHTML(d);
  const a = document.createElement('a');
  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
@@ -9646,8 +9668,8 @@ async function downloadPropostaHTML() {
  await registerGeneratedProposal(d, '', 'html-baixado');
 }
 
-function copyPropostaHTML() {
- const d = getPropostaData();
+async function copyPropostaHTML() {
+ const d = await preparePublicPropostaData();
  const html = generatePropostaHTML(d);
  navigator.clipboard.writeText(html).then(() => {
  const btn = document.getElementById('copyPropostaHTMLBtn');
@@ -9657,10 +9679,10 @@ function copyPropostaHTML() {
 }
 
 async function printPropostaPDF() {
- const d = getPropostaData();
- const html = generatePropostaHTML(d);
  const win = window.open('', '_blank');
  if (!win) { alert('O navegador bloqueou a nova aba. Permita pop-ups pra esta página e tente de novo.'); return; }
+ const d = await preparePublicPropostaData();
+ const html = generatePropostaHTML(d);
  win.document.write(html);
  win.document.close();
  await registerGeneratedProposal(d, '', 'pdf-impresso');
@@ -9751,7 +9773,7 @@ async function publishProposta(){
   statusEl.textContent='🔑 Digite a senha para publicar:';
   _cfConfigUI('propostaPublishResult','cfConfigWrapperProposta',publishProposta);return;
  }
- const d=getPropostaData();
+ const d=await preparePublicPropostaData();
  const html=generatePropostaHTML(d);
  const slug=getPropostaSlug();
  statusEl.textContent='⏳ Publicando...';
@@ -9774,13 +9796,13 @@ async function notifyProposalRecipient(d,url){
  try{await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload),keepalive:true});if(typeof showBizToast==='function')showBizToast('✓ Proposta enviada ao e-mail informado.');}catch(error){if(typeof showBizToast==='function')showBizToast('Link criado; não foi possível confirmar o envio do e-mail.');}
 }
 
-function contactFormHTML(){
- const crm='https://studio-melk-next.vercel.app/api/integrations/gerador';
- return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fale com o Studio Melk</title><style>body{margin:0;background:#f6f2eb;color:#203a31;font:16px system-ui}.box{max-width:680px;margin:40px auto;padding:32px;background:#fff;border-radius:20px;box-shadow:0 18px 50px #263b3020}h1{font:700 36px Georgia;margin:0 0 8px}p{color:#6e706b}label{display:grid;gap:6px;margin:16px 0;font-weight:700}input,select,textarea{font:inherit;padding:13px;border:1px solid #d9d5cd;border-radius:10px}textarea{min-height:110px}button{width:100%;padding:15px;border:0;border-radius:10px;background:#214438;color:#fff;font-weight:800}.specific{display:none}.msg{margin-top:12px;font-weight:700}</style></head><body><main class="box"><h1>Vamos conversar?</h1><p>Conte um pouco sobre seu evento. O Studio Melk entra em contato com você.</p><form id="f"><label>Tipo de evento<select name="eventType" id="eventType"><option>Casamento</option><option>Aniversário</option><option>Empresa</option><option>Ensaio</option><option>Outro</option></select></label><label>Seu nome<input name="name" required></label><label class="specific casamento">Nome do casal<input name="coupleName"></label><label class="specific aniversario">Nome do dono da festa<input name="birthdayName"></label><label class="specific empresa">Nome da empresa<input name="companyName"></label><label class="specific ensaio">Nome do dono do ensaio<input name="sessionName"></label><label>WhatsApp<input name="whatsapp" required></label><label>E-mail<input name="email" type="email"></label><label>Data prevista<input name="date" placeholder="dd/mm/aa" maxlength="8"></label><label>Mensagem<textarea name="message"></textarea></label><button>Enviar contato</button><div class="msg" id="msg"></div></form></main><script>const f=document.getElementById('f'),type=document.getElementById('eventType'),msg=document.getElementById('msg');function fields(){document.querySelectorAll('.specific').forEach(x=>x.style.display='none');const k=type.value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');document.querySelector('.'+k)?.style.setProperty('display','grid')}type.onchange=fields;fields();f.onsubmit=async e=>{e.preventDefault();msg.textContent='Enviando...';const d=Object.fromEntries(new FormData(f));const eventName=d.coupleName||d.birthdayName||d.companyName||d.sessionName||d.name;try{const r=await fetch('${crm}',{method:'POST',headers:{'Content-Type':'application/json','x-studio-pair-code':'Melk21'},body:JSON.stringify({type:'lead',client:{name:eventName,email:d.email,whatsapp:d.whatsapp},event:{title:d.eventType,date:d.date},source:{channel:'formulario-site',title:d.message||'Contato recebido pelo formulário'}})});if(!r.ok)throw Error();msg.textContent='Contato enviado. Em breve falaremos com você.';f.reset();fields()}catch(_){msg.textContent='Não foi possível enviar agora. Tente novamente.'}}<\/script></body></html>`;
+function contactFormHTML(publicToken){
+ const crm='https://gerador-studio-melk.vercel.app/api/sync';
+ return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fale com o Studio Melk</title><style>body{margin:0;background:#f6f2eb;color:#203a31;font:16px system-ui}.box{max-width:680px;margin:40px auto;padding:32px;background:#fff;border-radius:20px;box-shadow:0 18px 50px #263b3020}h1{font:700 36px Georgia;margin:0 0 8px}p{color:#6e706b}label{display:grid;gap:6px;margin:16px 0;font-weight:700}input,select,textarea{font:inherit;padding:13px;border:1px solid #d9d5cd;border-radius:10px}textarea{min-height:110px}button{width:100%;padding:15px;border:0;border-radius:10px;background:#214438;color:#fff;font-weight:800}.specific{display:none}.msg{margin-top:12px;font-weight:700}</style></head><body><main class="box"><h1>Vamos conversar?</h1><p>Conte um pouco sobre seu evento. O Studio Melk entra em contato com você.</p><form id="f"><label>Tipo de evento<select name="eventType" id="eventType"><option>Casamento</option><option>Aniversário</option><option>Empresa</option><option>Ensaio</option><option>Outro</option></select></label><label>Seu nome<input name="name" required></label><label class="specific casamento">Nome do casal<input name="coupleName"></label><label class="specific aniversario">Nome do dono da festa<input name="birthdayName"></label><label class="specific empresa">Nome da empresa<input name="companyName"></label><label class="specific ensaio">Nome do dono do ensaio<input name="sessionName"></label><label>WhatsApp<input name="whatsapp" required></label><label>E-mail<input name="email" type="email"></label><label>Data prevista<input name="date" placeholder="dd/mm/aa" maxlength="8"></label><label>Mensagem<textarea name="message"></textarea></label><button>Enviar contato</button><div class="msg" id="msg"></div></form></main><script>const f=document.getElementById('f'),type=document.getElementById('eventType'),msg=document.getElementById('msg');function fields(){document.querySelectorAll('.specific').forEach(x=>x.style.display='none');const k=type.value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');document.querySelector('.'+k)?.style.setProperty('display','grid')}type.onchange=fields;fields();f.onsubmit=async e=>{e.preventDefault();msg.textContent='Enviando...';const d=Object.fromEntries(new FormData(f));const eventName=d.coupleName||d.birthdayName||d.companyName||d.sessionName||d.name;try{const r=await fetch('${crm}',{method:'POST',headers:{'Content-Type':'application/json','x-studio-public-token':${JSON.stringify(publicToken||'')}},body:JSON.stringify({type:'lead',externalId:'form-'+Date.now(),client:{name:eventName,email:d.email,whatsapp:d.whatsapp},event:{title:d.eventType,date:d.date},source:{channel:'formulario-site',title:d.message||'Contato recebido pelo formulário'}})});if(!r.ok)throw Error();msg.textContent='Contato enviado. Em breve falaremos com você.';f.reset();fields()}catch(_){msg.textContent='Não foi possível enviar agora. Tente novamente.'}}<\/script></body></html>`;
 }
-function downloadContactFormHTML(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([contactFormHTML()],{type:'text/html'}));a.download='formulario-studio-melk.html';a.click();URL.revokeObjectURL(a.href);}
-async function copyContactFormHTML(){await navigator.clipboard.writeText(contactFormHTML());document.getElementById('contactFormResult').textContent='✓ Código HTML copiado';}
-async function publishContactForm(){const result=document.getElementById('contactFormResult');result.textContent='Publicando...';try{const url=await cfPublish(contactFormHTML(),'contato-studio-melk');result.innerHTML='✓ Página publicada: <a href="'+url+'" target="_blank" rel="noopener">abrir formulário</a>';}catch(e){result.textContent='Configure a publicação nas opções do Studio Melk Flow e tente novamente.';}}
+async function downloadContactFormHTML(){const token=await issuePublicSyncToken('lead');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([contactFormHTML(token)],{type:'text/html'}));a.download='formulario-studio-melk.html';a.click();URL.revokeObjectURL(a.href);}
+async function copyContactFormHTML(){const token=await issuePublicSyncToken('lead');await navigator.clipboard.writeText(contactFormHTML(token));document.getElementById('contactFormResult').textContent='✓ Código HTML copiado';}
+async function publishContactForm(){const result=document.getElementById('contactFormResult');result.textContent='Publicando...';try{const token=await issuePublicSyncToken('lead');const url=await cfPublish(contactFormHTML(token),'contato-studio-melk');result.innerHTML='✓ Página publicada: <a href="'+url+'" target="_blank" rel="noopener">abrir formulário</a>';}catch(e){result.textContent=e.message||'Configure a publicação nas opções do Studio Melk Flow e tente novamente.';}}
 
 const SENT_PROPOSALS_KEY='studio_melk_sent_proposals_v1';
 function sentProposals(){try{return JSON.parse(localStorage.getItem(SENT_PROPOSALS_KEY)||'[]');}catch(e){return [];}}
@@ -9799,7 +9821,9 @@ async function registerGeneratedProposal(d,url,format){
  const service=[d.ativoFoto?'Fotografia':'',d.ativoFilme?'Filmagem':'',d.ativoAddons?'Adicionais':''].filter(Boolean).join(' + ')||d.heroTitulo||'Proposta Studio Melk';
  const payload={type:'proposal',externalId:d.integrationId,client:{name:proposalOwner(d),email:d.clienteEmail||'',whatsapp:d.clienteWhats||''},event:{title:proposalOwner(d),date:d.dataCasamento||'',time:'',place:d.localFesta||d.localCerimonia||''},commercial:{service:service,total:total,installments:(document.getElementById('pp_pmt_pagamento')||{}).value||''},source:{channel:'gerador',url:url||'',format:format,title:'Proposta gerada no Studio Melk Flow'}};
  try{
-  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':d.pairCode||'Melk21'},body:JSON.stringify(payload)});
+  const pairCode=localStorage.getItem('studio_melk_manager_pair_code') || '';
+  if(!pairCode) throw new Error('Conecte o Gerador ao Flow antes de registrar a proposta.');
+  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':pairCode},body:JSON.stringify(payload)});
   const body=await response.json().catch(function(){return {};});
   if(!response.ok)throw new Error(body.error||'Não foi possível registrar no funil.');
   if(typeof showBizToast==='function')showBizToast('✓ Proposta registrada no funil.');

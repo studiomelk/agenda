@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const projectId = "studio-5279929289-498c5";
-const apiKey = "AIzaSyDpRvSlrfpynbpoCJItut1kfC7ePe9Ym6U";
+const apiKey = process.env.FIREBASE_WEB_API_KEY || "";
 
 type Payload = {
   type: "lead" | "proposal" | "contract";
@@ -24,6 +24,7 @@ function normalizedDate(value: unknown) {
 }
 
 async function token() {
+  if (!apiKey) throw new Error("A chave pública do Firebase não está configurada no servidor.");
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ returnSecureToken: true }), cache: "no-store",
   });
@@ -69,7 +70,7 @@ function decodeSetting(value: unknown) {
 }
 
 async function integrationSettings(auth: string) {
-  const fallback = { pairCode: process.env.GERADOR_PAIR_CODE || "Melk21", enabled: true };
+  const fallback = { pairCode: process.env.GERADOR_PAIR_CODE || "", enabled: Boolean(process.env.GERADOR_PAIR_CODE) };
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/integration_settings/flow`, {
     headers: { authorization: `Bearer ${auth}` }, cache: "no-store",
   });
@@ -85,10 +86,8 @@ async function integrationSettings(auth: string) {
 export async function POST(request: Request) {
   const expected = process.env.GERADOR_SYNC_SECRET;
   const auth = await token();
-  const settings = await integrationSettings(auth);
   const internalAuthorized = Boolean(expected && request.headers.get("authorization") === `Bearer ${expected}`);
-  const publicAuthorized = settings.enabled && request.headers.get("x-studio-pair-code") === settings.pairCode;
-  if (!internalAuthorized && !publicAuthorized) return NextResponse.json({ error: "Integração não autorizada." }, { status: 401, headers: { "access-control-allow-origin": "*" } });
+  if (!internalAuthorized) return NextResponse.json({ error: "Integração não autorizada." }, { status: 401, headers: { "access-control-allow-origin": "*" } });
   const payload = await request.json().catch(() => null) as Payload | null;
   if (!payload?.type || !payload.externalId) return NextResponse.json({ error: "Envie type e externalId." }, { status: 400 });
   try {
@@ -125,6 +124,7 @@ export async function GET(request: Request) {
   const pairCode = request.headers.get("x-studio-pair-code");
   const auth = await token();
   const settings = await integrationSettings(auth);
+  if (!settings.pairCode) return NextResponse.json({ connected: false, error: "Configure o código de conexão no servidor." }, { status: 503 });
   if (!pairCode || pairCode !== settings.pairCode) return NextResponse.json({ connected: false, error: "Código de conexão inválido." }, { status: 401 });
   if (!settings.enabled) return NextResponse.json({ connected: false, disabled: true, error: "Integração desconectada." }, { status: 409 });
   if (!process.env.GERADOR_SYNC_SECRET) return NextResponse.json({ connected: false, error: "A chave interna da integração não está configurada." }, { status: 503 });

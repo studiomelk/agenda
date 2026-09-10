@@ -1,8 +1,11 @@
-# Studio Melk — Manager Next
+# Studio Melk — Flow + Gerador
 
 ## Produto
 
-Painel operacional para o Studio Melk, um estúdio de foto e vídeo. Esta é uma versão de desenvolvimento independente do site atual: não substitui a produção e não escreve no banco existente nesta fase.
+Ecossistema operacional do Studio Melk com dois aplicativos coordenados:
+
+- `studio-melk.vercel.app`: Flow, painel principal de gestão.
+- `gerador-studio-melk.vercel.app`: Gerador independente, também disponível como módulo incorporado no Flow.
 
 ## Usuários
 
@@ -28,14 +31,17 @@ Transformar uma proposta em um relacionamento rastreável: capturar o lead, acom
 - Contrato de integração para receber dados do Gerador de Propostas sem gravar em produção.
 - Estrutura preparada para uma fonte única de dados no Firebase/Firestore.
 
-## Restrições confirmadas
+## Arquitetura confirmada
 
 - Dados atuais permanecem preservados; há backup diário e exportação imediata no Google Cloud.
-- O app atual em `studio-melk.vercel.app` não será sobrescrito.
-- Alterações desta fase entram em uma branch de desenvolvimento e geram somente preview.
+- O Gerador continua utilizável sozinho, sem depender da interface do Flow.
+- O Flow incorpora a URL canônica do Gerador; não mantém uma segunda cópia da interface.
+- A sincronização Gerador → Flow passa pelo servidor do Gerador e usa segredo somente entre servidores.
+- Páginas públicas recebem tokens assinados, temporários e limitados ao tipo de operação; o código de conexão não é incluído no HTML exportado.
+- As rotas públicas usam os dois domínios canônicos, sem depender do projeto legado `studio-melk-next`.
 
 ## Decisões desta fase
 
 - Web: Next.js + TypeScript.
-- Hospedagem: preview da Vercel; produção somente após aprovação explícita.
+- Hospedagem: projetos Vercel separados para Flow e Gerador, publicados de forma coordenada.
 - Dados: exemplos locais nesta primeira tela. A leitura/migração do Firestore será uma etapa posterior, com regras de acesso revisadas.
