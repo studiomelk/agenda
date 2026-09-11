@@ -38,7 +38,7 @@ Transformar uma proposta em um relacionamento rastreável: capturar o lead, acom
 - O Flow incorpora a URL canônica do Gerador; não mantém uma segunda cópia da interface.
 - A sincronização Gerador → Flow passa pelo servidor do Gerador e usa segredo somente entre servidores.
 - Páginas públicas recebem tokens assinados, temporários e limitados ao tipo de operação; o código de conexão não é incluído no HTML exportado.
-- As rotas públicas usam os dois domínios canônicos, sem depender do projeto legado `studio-melk-next`.
+- As rotas públicas usam apenas os dois domínios canônicos. Enquanto o novo Flow não recebe as credenciais privadas do Firebase, sua rota de integração encaminha as operações no servidor para o backend legado; essa ponte não é exposta nas páginas públicas e pode ser removida depois da configuração das credenciais.
 
 ## Decisões desta fase
 
