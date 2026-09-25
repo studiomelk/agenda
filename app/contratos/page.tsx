@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./contratos.css";
 
-const DEFAULT_TEMPLATE = \`CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE FOTOGRAFIA E FILMAGEM
+const DEFAULT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE FOTOGRAFIA E FILMAGEM
 
 CONTRATANTE
 Nome: {{NOME_CONTRATANTE}}
@@ -40,7 +40,7 @@ CONTRATANTE: {{NOME_CONTRATANTE}}
 STUDIO MELK FOTO E FILME: Marcio Melk
 
 Data da assinatura: {{DATA_ASSINATURA}}
-\`;
+`;
 
 const fields = [
   ["NOME_CONTRATANTE","Contratante"],["CPF","CPF"],["RG","RG"],["WHATSAPP","WhatsApp"],["EMAIL","E-mail"],
