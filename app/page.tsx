@@ -213,14 +213,46 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
   const [pairCode, setPairCode] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(true);
-  const [googleEmail, setGoogleEmail] = useState("");
+
+  // Google Calendar state
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleAuthorizedEmail, setGoogleAuthorizedEmail] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [testEventLink, setTestEventLink] = useState("");
+  const [testEventId, setTestEventId] = useState("");
+
+  const fetchGoogleStatus = async () => {
+    try {
+      const res = await fetch("/api/google/status", { cache: "no-store" });
+      const data = await res.json() as { connected?: boolean; email?: string };
+      setGoogleConnected(Boolean(data.connected));
+      setGoogleAuthorizedEmail(data.email || "");
+    } catch {
+      setGoogleConnected(false);
+    }
+  };
+
   useEffect(() => {
     const savedCode = localStorage.getItem("studio-melk-flow-pair-code") || "";
     const savedEnabled = Boolean(savedCode) && localStorage.getItem("studio-melk-flow-connected") !== "false";
     setPairCode(savedCode); setConnected(savedEnabled);
-    setGoogleEmail(localStorage.getItem("studio-melk-google-calendar-email") || "");
     if (savedEnabled && savedCode) void connectFlow(savedCode, false);
+    void fetchGoogleStatus();
+
+    // Check URL parameters for OAuth status redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const googleStatus = urlParams.get("google_status");
+    if (googleStatus === "success") {
+      setNotice("✅ Conta do Google Agenda conectada com sucesso!");
+      window.history.replaceState({}, "", window.location.pathname);
+      void fetchGoogleStatus();
+    } else if (googleStatus === "error") {
+      const msg = urlParams.get("message") || "Erro ao conectar conta Google.";
+      setNotice(`❌ Erro no Google Agenda: ${msg}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
+
   async function connectFlow(code = pairCode, announce = true) {
     setConnecting(true);
     try {
@@ -236,6 +268,7 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
       if (announce) setNotice(error instanceof Error ? error.message : "Não foi possível validar o código de conexão.");
     } finally { setConnecting(false); }
   }
+
   async function saveConnection() {
     setConnecting(true);
     try {
@@ -248,6 +281,7 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
     } catch (error) { setNotice(error instanceof Error ? error.message : "Não foi possível salvar a conexão."); }
     finally { setConnecting(false); }
   }
+
   async function disconnectFlow() {
     setConnecting(true);
     try {
@@ -255,10 +289,150 @@ function ImportWorkspace({ setNotice, onUnlock, originalData }: { setNotice: (me
       localStorage.setItem("studio-melk-flow-connected", "false"); setConnected(false); setNotice("Integração desconectada. Nenhum dado foi apagado.");
     } finally { setConnecting(false); }
   }
+
+  async function handleTestGoogleConnection() {
+    setGoogleLoading(true);
+    try {
+      const res = await fetch("/api/google/test", { cache: "no-store" });
+      const data = await res.json() as { ok?: boolean; message?: string; summary?: string; error?: string };
+      if (data.ok) {
+        setNotice(`✅ Conexão OK! Agenda: "${data.summary || "Principal"}"`);
+      } else {
+        setNotice(`❌ Falha no teste: ${data.error || "Desconhecido"}`);
+      }
+    } catch (err) {
+      setNotice(`❌ Erro no teste: ${err instanceof Error ? err.message : "Erro na requisição"}`);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  async function handleCreateTestEvent() {
+    setGoogleLoading(true);
+    try {
+      const res = await fetch("/api/google/events/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ isTestEvent: true }),
+      });
+      const data = await res.json() as { ok?: boolean; google_event_id?: string; htmlLink?: string; error?: string };
+      if (data.ok && data.google_event_id) {
+        setTestEventId(data.google_event_id);
+        setTestEventLink(data.htmlLink || "");
+        setNotice(`✅ Evento de teste criado! ID: ${data.google_event_id}`);
+      } else {
+        setNotice(`❌ Erro ao criar evento de teste: ${data.error || "Falha"}`);
+      }
+    } catch (err) {
+      setNotice(`❌ Erro: ${err instanceof Error ? err.message : "Erro na requisição"}`);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  async function handleDeleteTestEvent() {
+    if (!testEventId) return;
+    setGoogleLoading(true);
+    try {
+      const res = await fetch(`/api/google/events/delete?google_event_id=${encodeURIComponent(testEventId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (data.ok) {
+        setTestEventId("");
+        setTestEventLink("");
+        setNotice("✅ Evento de teste excluído do Google Calendar com sucesso!");
+      } else {
+        setNotice(`❌ Erro ao excluir evento de teste: ${data.error || "Falha"}`);
+      }
+    } catch (err) {
+      setNotice(`❌ Erro: ${err instanceof Error ? err.message : "Erro na requisição"}`);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  async function handleDisconnectGoogle() {
+    setGoogleLoading(true);
+    try {
+      const res = await fetch("/api/google/disconnect", { method: "POST" });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (data.ok) {
+        setGoogleConnected(false);
+        setGoogleAuthorizedEmail("");
+        setTestEventId("");
+        setTestEventLink("");
+        setNotice("Google Agenda desconectado com sucesso.");
+      } else {
+        setNotice(`Erro ao desconectar: ${data.error}`);
+      }
+    } catch (err) {
+      setNotice(`Erro ao desconectar: ${err instanceof Error ? err.message : "Erro na requisição"}`);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
   return <section className="import-layout">
-    <div className="section-heading"><div><h2>Integrações</h2><p>Conecte uma vez e mantenha o fluxo ativo até decidir desconectar.</p></div><span className="stage-pill">{connected ? "Ativa" : "Desconectada"}</span></div>
-    <div className="import-next integration-card"><ShieldCheck size={22} /><div><h3>Studio Melk Flow</h3><p>Propostas e contratos entram automaticamente; contratos também criam cliente, financeiro e agenda.</p><label className="pair-code-field">Código da conexão<input value={pairCode} onChange={(event) => setPairCode(event.target.value)} autoCapitalize="none" /></label></div><div className="integration-actions"><button className="primary-button" type="button" disabled={connecting || pairCode.trim().length < 6} onClick={() => void saveConnection()}>{connecting ? "Salvando…" : connected ? "Salvar alteração" : "Conectar"}</button>{connected && <button className="outline-button" type="button" disabled={connecting} onClick={() => void disconnectFlow()}>Desconectar</button>}</div></div>
-    <div className="import-next"><CalendarDays size={22} /><div><h3>Google Agenda</h3><p>Este e-mail será usado como referência nos atalhos de agenda e localização.</p><label className="pair-code-field">E-mail da agenda<input type="email" value={googleEmail} placeholder="seuemail@gmail.com" onChange={(event) => setGoogleEmail(event.target.value)} /></label></div><button className="primary-button" type="button" onClick={() => { localStorage.setItem("studio-melk-google-calendar-email", googleEmail); setNotice("E-mail do Google Agenda salvo neste dispositivo."); }}>Salvar</button></div>
+    <div className="section-heading"><div><h2>Configurações & Integrações</h2><p>Conecte o Google Agenda e o Studio Melk Flow.</p></div><span className="stage-pill">{connected ? "Ativa" : "Desconectada"}</span></div>
+    
+    <div className="import-next integration-card">
+      <ShieldCheck size={22} />
+      <div>
+        <h3>Studio Melk Flow</h3>
+        <p>Propostas e contratos entram automaticamente; contratos também criam cliente, financeiro e agenda.</p>
+        <label className="pair-code-field">Código da conexão<input value={pairCode} onChange={(event) => setPairCode(event.target.value)} autoCapitalize="none" /></label>
+      </div>
+      <div className="integration-actions">
+        <button className="primary-button" type="button" disabled={connecting || pairCode.trim().length < 6} onClick={() => void saveConnection()}>{connecting ? "Salvando…" : connected ? "Salvar alteração" : "Conectar"}</button>
+        {connected && <button className="outline-button" type="button" disabled={connecting} onClick={() => void disconnectFlow()}>Desconectar</button>}
+      </div>
+    </div>
+
+    <div className="import-next integration-card" style={{ marginTop: "24px" }}>
+      <CalendarDays size={22} />
+      <div style={{ width: "100%" }}>
+        <h3>Configurações → Google Agenda</h3>
+        <p style={{ marginTop: "4px" }}>
+          Estado: <strong>{googleConnected ? "Google Agenda conectado" : "Google Agenda desconectado"}</strong>
+          {googleConnected && googleAuthorizedEmail && <span> — E-mail autorizado: <strong>{googleAuthorizedEmail}</strong></span>}
+        </p>
+        {!googleConnected ? (
+          <div style={{ marginTop: "16px" }}>
+            <a className="primary-button" href="/api/google/auth" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <CalendarDays size={18} /> CONECTAR CONTA GOOGLE
+            </a>
+          </div>
+        ) : (
+          <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <button className="outline-button" type="button" disabled={googleLoading} onClick={handleTestGoogleConnection}>
+                TESTAR CONEXÃO
+              </button>
+              <button className="primary-button" type="button" disabled={googleLoading} onClick={handleCreateTestEvent}>
+                CRIAR EVENTO DE TESTE
+              </button>
+              <button className="outline-button danger-button" type="button" disabled={googleLoading} onClick={handleDisconnectGoogle}>
+                DESCONECTAR GOOGLE
+              </button>
+            </div>
+            {testEventLink && (
+              <div style={{ padding: "12px", backgroundColor: "rgba(108, 43, 255, 0.08)", borderRadius: "8px", fontSize: "14px", marginTop: "8px" }}>
+                <p>✅ Evento de teste criado de verdade no Google Calendar:</p>
+                <a href={testEventLink} target="_blank" rel="noreferrer" style={{ color: "#6C2BFF", fontWeight: "bold", wordBreak: "break-all" }}>
+                  {testEventLink}
+                </a>
+                <div style={{ marginTop: "10px" }}>
+                  <button className="outline-button small" type="button" disabled={googleLoading} onClick={handleDeleteTestEvent}>
+                    EXCLUIR EVENTO DE TESTE
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   </section>;
 }
 
@@ -641,8 +815,40 @@ function FormsWorkspace({setNotice}:{setNotice:(message:string)=>void}) {
         nome: openEvent.client, email: openEvent.email, whatsapp: openEvent.phone,
       });
     }
+
+    // Google Calendar Update
+    const rawEventObj = originalData.events.find((e) => e.id === openEvent.id);
+    const googleEventId = String(rawEventObj?.google_event_id || "");
+    if (googleEventId) {
+      try {
+        const names = openEvent.client.split("+").map((s) => s.trim());
+        await fetch("/api/google/events/update", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            google_event_id: googleEventId,
+            noiva: names[0] || openEvent.client,
+            noivo: names[1] || "",
+            nomeContratante: openEvent.client,
+            whatsapp: openEvent.phone,
+            email: openEvent.email,
+            dataEvento: openEvent.rawDate,
+            horario: openEvent.time,
+            local: openEvent.place,
+            endereco: openEvent.place,
+            servicos: openEvent.project,
+            statusContrato: openEvent.status,
+            observacoes: openEvent.teamNotes,
+            googleMapsUrl: openEvent.mapUrl,
+          }),
+        });
+      } catch (err) {
+        console.warn("Aviso: Falha ao atualizar Google Calendar:", err);
+      }
+    }
+
     setEventEdits((all) => { const next = { ...all }; delete next[openEvent.id]; return next; });
-    setNotice(`${openEvent.title} e os dados do cliente foram atualizados no banco principal.`);
+    setNotice(`${openEvent.title} e os dados do cliente foram atualizados.`);
   };
   const createNewEvent = async () => {
     if (!newEvent.title || !newEvent.date) return setNotice("Informe ao menos o nome e a data do evento.");
@@ -660,6 +866,21 @@ function FormsWorkspace({setNotice}:{setNotice:(message:string)=>void}) {
     if (event.integrationId) {
       const request = originalData.requests.find((item) => String(item.externalId || "") === event.integrationId || String(item.id) === `gerador-${event.integrationId}`);
       if (request) await originalData.patchDocument("solicitacoes", String(request.id), { status: "Lixeira" });
+    }
+
+    // Google Calendar Removal prompt
+    const rawEventObj = originalData.events.find((e) => e.id === event.id);
+    const googleEventId = String(rawEventObj?.google_event_id || "");
+    if (googleEventId && window.confirm("Deseja remover também do Google Agenda?")) {
+      try {
+        await fetch(`/api/google/events/delete?google_event_id=${encodeURIComponent(googleEventId)}`, {
+          method: "DELETE",
+        });
+        setNotice(`${event.title} foi removido do Google Agenda e enviado para a lixeira.`);
+        return;
+      } catch (err) {
+        console.warn("Erro ao remover evento do Google Agenda:", err);
+      }
     }
     setNotice(`${event.title} foi enviado para a lixeira e pode ser recuperado.`);
   };

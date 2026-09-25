@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSign } from "node:crypto";
+import { refreshAccessTokenIfNeeded, buildEventTitle, buildEventDescription } from "@/lib/google-calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -165,8 +166,59 @@ export async function POST(request: Request) {
     };
     await write("solicitacoes", `gerador-${payload.externalId}`, requestData, auth);
     if (payload.type === "contract") {
+      let googleEventId: string | undefined = undefined;
+      try {
+        const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+        const accessToken = await refreshAccessTokenIfNeeded();
+        const names = (payload.client?.name || "Cliente").split("+").map((s) => s.trim());
+        const noiva = names[0] || payload.client?.name || "";
+        const noivo = names[1] || "";
+        const summary = buildEventTitle(noiva, noivo);
+        const description = buildEventDescription({
+          noiva,
+          noivo,
+          nomeContratante: payload.client?.name,
+          whatsapp: payload.client?.whatsapp,
+          email: payload.client?.email,
+          dataEvento: eventDate,
+          horario: payload.event?.time || "16:00",
+          local: payload.event?.place || "",
+          endereco: payload.event?.place || "",
+          servicos: payload.commercial?.service || "",
+          valorTotal: payload.commercial?.total ? `R$ ${payload.commercial.total}` : "",
+          statusContrato: "Confirmado",
+          statusAssinatura: payload.contract?.signed ? "Assinado" : "Pendente",
+          statusFinanceiro: "Pendente",
+          linkContrato: payload.contract?.url || "",
+          googleMapsUrl: payload.event?.mapsUrl || "",
+        });
+
+        const startDateTimeStr = `${eventDate}T${payload.event?.time || "16:00"}:00-03:00`;
+        const startDateObj = new Date(startDateTimeStr);
+        const endDateObj = new Date(startDateObj.getTime() + 8 * 60 * 60 * 1000);
+
+        const googleRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            summary,
+            description,
+            location: payload.event?.place || "",
+            start: { dateTime: startDateObj.toISOString(), timeZone: "America/Sao_Paulo" },
+            end: { dateTime: endDateObj.toISOString(), timeZone: "America/Sao_Paulo" },
+          }),
+          cache: "no-store",
+        });
+        if (googleRes.ok) {
+          const gData = await googleRes.json() as { id?: string };
+          googleEventId = gData.id;
+        }
+      } catch (err) {
+        console.warn("Aviso: Falha ao publicar evento no Google Calendar durante integracao:", err);
+      }
+
       await write("clientes", clientId, { integrationId: payload.externalId, nome: payload.client?.name || "Cliente", email: payload.client?.email || "", whatsapp: payload.client?.whatsapp || "", pagamentos: payments }, auth);
-      await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: eventDate, time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed) }, auth);
+      await write("events", eventId, { integrationId: payload.externalId, title: payload.event?.title || "Evento", date: eventDate, time: payload.event?.time || "", locCerimonia: payload.event?.place || "", mapUrl: payload.event?.mapsUrl || "", clientId, services: payload.commercial?.service || "", status: "Confirmado", team: [], contractUrl: payload.contract?.url || "", contractSigned: Boolean(payload.contract?.signed), google_event_id: googleEventId || "" }, auth);
       await write("pedidos", `gerador-order-${payload.externalId}`, { integrationId: payload.externalId, clientId, solicitacaoId: `gerador-${payload.externalId}`, servicos: payload.commercial?.service || "", valorTotal: total, parcelas: payload.commercial?.installments || "", status: "Aberto", dadosEvento: requestData.dadosEvento, dataCriacao: new Date().toISOString() }, auth);
     }
     return NextResponse.json({ ok: true, imported: payload.type, externalId: payload.externalId, agendaCreated: payload.type === "contract", message: payload.type === "contract" ? "Contrato recebido: ficha, agenda e financeiro foram criados." : "Proposta recebida no funil comercial." }, { headers: { "access-control-allow-origin": "*" } });
