@@ -4,6 +4,7 @@
  * sent to, or embedded in, the browser.
  */
 const crypto = require("crypto");
+const { readCookie, callCrm } = require("./_crm");
 
 function encodeToken(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -51,9 +52,19 @@ module.exports = async (request, response) => {
     return response.status(503).json({ error: "A conexão ainda não foi configurada no servidor." });
   }
 
-  const pairAuthorized = Boolean(expectedPairCode && pairCode && pairCode === expectedPairCode);
+  const device = readCookie(request);
+  const pairAuthorized = Boolean(device) || Boolean(expectedPairCode && pairCode && pairCode === expectedPairCode);
+  if (request.method === "GET" && typeof request.query?.q === "string") {
+    if (!device) return response.status(401).json({ error: "Conecte este aparelho ao Melk CRM para buscar contatos." });
+    const r = await callCrm({ query: "q=" + encodeURIComponent(request.query.q.slice(0, 80)), device });
+    return response.status(r.status).json(r.body);
+  }
   if (request.method === "GET" && request.query?.issue === "public-token") {
-    if (!pairAuthorized) return response.status(401).json({ error: "Código de conexão inválido." });
+    const pairOk = Boolean(expectedPairCode && pairCode && pairCode === expectedPairCode);
+    if (!pairOk) {
+      const check = device ? await callCrm({ device }) : null;
+      if (!check || check.status !== 200 || !check.body.device) return response.status(401).json({ error: "Conecte este aparelho ao Melk CRM." });
+    }
     const scope = request.query.scope === "lead" ? "lead" : "contract";
     const externalId = scope === "contract" ? String(request.query.externalId || "") : "";
     if (scope === "contract" && !externalId) return response.status(400).json({ error: "Informe o identificador da proposta." });
@@ -68,24 +79,6 @@ module.exports = async (request, response) => {
     return response.status(401).json({ error: "Integração não autorizada." });
   }
 
-  try {
-    const raw = request.method === "POST" ? JSON.stringify(request.body || {}) : "";
-    const timestamp = String(Math.floor(Date.now() / 1000));
-    const signature = crypto.createHmac("sha256", secret).update(`${timestamp}.${raw}`).digest("hex");
-    const headers = { "x-melk-timestamp": timestamp, "x-melk-signature": signature };
-    if (request.method === "POST") headers["content-type"] = "application/json";
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const upstream = await fetch(managerUrl, { method: request.method, headers, body: request.method === "POST" ? raw : undefined, signal: controller.signal }).finally(() => clearTimeout(timer));
-    const body = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      const reason = body.error || `HTTP ${upstream.status}`;
-      const prefix = upstream.status === 401 ? "O CRM recusou a assinatura (segredo diferente entre os apps)" : upstream.status >= 500 ? "O CRM está fora do ar ou com erro" : "O CRM recusou os dados";
-      return response.status(upstream.status === 401 ? 502 : upstream.status).json({ error: `${prefix}: ${reason}` });
-    }
-    return response.status(200).json(body);
-  } catch (error) {
-    const timeout = error && error.name === "AbortError";
-    return response.status(504).json({ error: timeout ? "O CRM demorou para responder. Tente novamente em instantes." : "Não foi possível falar com o CRM agora. Tente novamente em instantes." });
-  }
+  const r = await callCrm({ method: request.method, body: request.body, device: device || undefined });
+  return response.status(r.status).json(r.body);
 };

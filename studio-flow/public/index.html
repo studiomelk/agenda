@@ -327,6 +327,13 @@ body.mobile-mode #tab-contrato{background:rgba(220,38,38,.025);}
 body.mobile-mode #tab-entrega{background:rgba(22,163,74,.025);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+.crm-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font:600 12px/1 'DM Sans',system-ui,sans-serif;border:1px solid #d9d5cd;background:#f6f2eb;color:#555;cursor:default}
+button.crm-chip{cursor:pointer}
+.crm-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:#aaa}
+.crm-chip[data-state="on"]{background:#e8f3ec;border-color:#b5d6c0;color:#1f5a3a}.crm-chip[data-state="on"]::before{background:#2d8a4e}
+.crm-chip[data-state="off"]{background:#fbeeee;border-color:#efc4c4;color:#8a2a2a}.crm-chip[data-state="off"]::before{background:#c0392b}
+</style>
 </head>
 <body>
 <script>
@@ -339,7 +346,7 @@ if (new URLSearchParams(window.location.search).get('embed') === '1') document.b
  <p>v3.0</p>
 </div>
 
-<div class="shortcut-strip"><button type="button" class="ajustes-gerais-btn" onclick="openAjustesGerais()">🏢 Perfil da Empresa</button><button type="button" class="ajustes-gerais-btn" style="background:#2d6a4f;" onclick="openDadosCliente()">👤 Dados do Cliente</button><button type="button" class="ajustes-gerais-btn" style="background:#8a5d24;" onclick="openSentProposals()">⭐ Propostas enviadas</button><button type="button" class="ajustes-gerais-btn" style="background:#315d9b;" onclick="openProjectSaveModal()">💾 Salvar geral</button><button type="button" class="ajustes-gerais-btn" id="mobileModeToggle" style="background:#6a3fb5;" onclick="toggleMobileMode()">📱 Versão Mobile</button><button type="button" class="shortcut-toggle" onclick="toggleShortcutPopover()">Atalhos</button><div id="shortcutPopover" class="shortcut-popover"><strong>Atalhos rápidos</strong><br><span>A</span> aumentar tamanho · <span>D</span> diminuir · <span>S</span> trazer camada para frente · <span>Delete</span> apagar · <span>Ctrl/Cmd + Z</span> desfazer · <span>Cmd/Ctrl +</span> zoom · <span>Cmd/Ctrl -</span> afastar · <span>Cmd/Ctrl 0</span> resetar</div></div>
+<div class="shortcut-strip"><button type="button" id="crmTopChip" class="crm-chip" data-state="unknown" onclick="openAjustesGerais();setTimeout(function(){var b=document.getElementById('crmConnBox');if(b)b.scrollIntoView({block:'center'});},300)" title="Conexão com o Melk CRM">Melk CRM…</button><button type="button" class="ajustes-gerais-btn" onclick="openAjustesGerais()">🏢 Perfil da Empresa</button><button type="button" class="ajustes-gerais-btn" style="background:#2d6a4f;" onclick="openDadosCliente()">👤 Dados do Cliente</button><button type="button" class="ajustes-gerais-btn" style="background:#8a5d24;" onclick="openSentProposals()">⭐ Propostas enviadas</button><button type="button" class="ajustes-gerais-btn" style="background:#315d9b;" onclick="openProjectSaveModal()">💾 Salvar geral</button><button type="button" class="ajustes-gerais-btn" id="mobileModeToggle" style="background:#6a3fb5;" onclick="toggleMobileMode()">📱 Versão Mobile</button><button type="button" class="shortcut-toggle" onclick="toggleShortcutPopover()">Atalhos</button><div id="shortcutPopover" class="shortcut-popover"><strong>Atalhos rápidos</strong><br><span>A</span> aumentar tamanho · <span>D</span> diminuir · <span>S</span> trazer camada para frente · <span>Delete</span> apagar · <span>Ctrl/Cmd + Z</span> desfazer · <span>Cmd/Ctrl +</span> zoom · <span>Cmd/Ctrl -</span> afastar · <span>Cmd/Ctrl 0</span> resetar</div></div>
 
 <div id="mobileQuickBar">
  <button type="button" class="mqb-btn active" data-tab="web" style="--mqb-color:#2f6fed;" onclick="mobileQuickAccess('web')"><span class="mqb-ico">🌐</span><span class="mqb-label">Web</span></button>
@@ -1406,7 +1413,7 @@ if (new URLSearchParams(window.location.search).get('embed') === '1') document.b
  <div class="textStyleRow" data-textkey="introTexto"></div>
 
  <div class="field-row" style="display:flex;gap:10px;">
- <div class="field" style="flex:1;"><label>Data do casamento</label><input type="date" id="pp_dataCasamento" oninput="ppPmtGerarParcelas();debouncedPropostaPreview()"><span class="field-hint">Na proposta aparece como dd/mm/aa.</span></div>
+ <p class="field-hint" style="flex-basis:100%;margin:0 0 6px;">Esses dados vêm de <a href="#" onclick="openDadosCliente();return false;">👤 Dados do Cliente</a> — preencha lá uma vez (ou busque no CRM) e eles aparecem aqui, na Página Web, nos Cartões e no Contrato.</p><div class="field" style="flex:1;"><label>Data do casamento</label><input type="date" id="pp_dataCasamento" oninput="ppPmtGerarParcelas();debouncedPropostaPreview()"><span class="field-hint">Na proposta aparece como dd/mm/aa.</span></div>
  <div class="field" style="flex:1;"><label>Nome do casal</label><input type="text" id="pp_nomeCasalEvento" placeholder="Ex.: Mariana & Lucas" oninput="document.getElementById('pp_nomeCasal').value=this.value;debouncedPropostaPreview()"></div>
  </div>
  <div class="field-row"><div class="field" style="flex:1;"><label>Igreja / cerimônia</label><input type="text" id="pp_localCerimonia" placeholder="Nome e endereço" oninput="debouncedPropostaPreview()"></div><div class="field" style="flex:1;"><label>Local da festa</label><input type="text" id="pp_localFesta" placeholder="Nome e endereço" oninput="debouncedPropostaPreview()"></div></div>
@@ -2074,12 +2081,21 @@ Aproveite sua entrega e preserve esses momentos especiais com segurança.</texta
  <div class="field"><label>E-mail que recebe leads e propostas</label><input type="email" id="ag_emailNotificacao" placeholder="melkvideo@gmail.com"></div>
  <div id="perfilNotificacoesFormulario" style="margin-top:12px;"></div>
 
- <h3 style="font-size:13px;font-weight:700;margin:22px 0 8px;color:#333;">↔ Integração com Studio Melk Manager</h3>
- <p style="font-size:12px;line-height:1.5;color:#777;margin:0 0 10px;">Use o mesmo código nos dois aplicativos. Depois de conectado, você poderá enviar uma proposta ou contrato para o CRM sem baixar arquivos.</p>
+ <h3 style="font-size:13px;font-weight:700;margin:22px 0 8px;color:#333;">↔ Melk CRM</h3>
+ <p style="font-size:12px;line-height:1.5;color:#777;margin:0 0 10px;">Conecte este aparelho uma vez. Depois, propostas, contratos e formulários entram direto em <b>Leads › Novo contato</b> e você pode buscar clientes do CRM.</p>
+ <div id="crmConnBox" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px;">
+  <span id="crmConnChip" class="crm-chip" data-state="unknown">Verificando conexão…</span>
+  <button class="btn-green" type="button" id="crmConnectBtn" onclick="crmConnect()">Conectar ao Melk CRM</button>
+  <button class="btn-secondary" type="button" onclick="crmTestConnection()">Testar conexão</button>
+  <button class="btn-secondary" type="button" id="crmDisconnectBtn" onclick="crmDisconnect()">Desconectar</button>
+ </div>
+ <span class="field-hint" id="crmConnStatus" role="status" style="display:block;margin:0 0 10px;"></span>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px;"><button class="btn-green" type="button" onclick="sendToStudioManager('proposal')">Enviar proposta ao CRM</button><button class="btn-green" type="button" onclick="sendToStudioManager('contract')">Enviar contrato ao CRM</button></div>
+ <details style="margin-top:10px;"><summary style="font-size:12px;color:#777;cursor:pointer;">Avançado: código de conexão antigo</summary>
  <div class="field"><label>Código de conexão</label><input type="password" id="sm_pairCode" autocomplete="off" placeholder="Digite o código configurado no Flow"><span class="field-hint">O código fica salvo somente neste navegador. A chave interna de segurança fica protegida no servidor.</span></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;"><button class="btn-secondary" type="button" onclick="saveStudioManagerConnection()">Salvar conexão</button><button class="btn-secondary" type="button" onclick="testStudioManagerConnection()">Testar conexão</button></div>
- <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px;"><button class="btn-green" type="button" onclick="sendToStudioManager('proposal')">Enviar proposta ao CRM</button><button class="btn-green" type="button" onclick="sendToStudioManager('contract')">Enviar contrato ao CRM</button></div>
  <span class="field-hint" id="sm_connectionStatus" style="display:block;margin-top:8px;"></span>
+ </details>
 
  <div class="btn-row" style="margin-top:20px;">
  <button class="btn-green" onclick="applyAjustesGerais()">✓ Aplicar em todas as abas</button>
@@ -2110,6 +2126,13 @@ Aproveite sua entrega e preserve esses momentos especiais com segurança.</texta
     <h2 style="font-size:20px;margin-bottom:4px;">👤 Dados do Cliente</h2>
     <p style="font-size:12px;color:#888;margin-bottom:16px;">Preencha aqui, cole dados recebidos por WhatsApp/e-mail, ou importe um JSON salvo. Ao aplicar, alimenta Proposta, Página Web e Contrato.</p>
 
+    <!-- Buscar no Melk CRM -->
+    <div id="crmSearchBox" style="border:1px solid #e4ded3;background:#faf8f4;border-radius:12px;padding:12px;margin-bottom:14px;">
+      <label for="crmSearchInput" style="display:block;font-size:12px;font-weight:700;color:#214438;margin-bottom:6px;">🔎 Buscar no Melk CRM (lead ou cliente)</label>
+      <div style="display:flex;gap:6px;"><input id="crmSearchInput" type="search" placeholder="Nome, e-mail ou telefone" autocomplete="off" style="flex:1;padding:10px;border:1px solid #d9d5cd;border-radius:8px;" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSearch();}"><button type="button" class="btn-green" onclick="crmSearch()">Buscar</button></div>
+      <div id="crmLinkInfo" style="font-size:12px;margin-top:8px;color:#1f5a3a;"></div>
+      <ul id="crmSearchResults" role="listbox" aria-label="Resultados do CRM" style="list-style:none;margin:8px 0 0;padding:0;max-height:240px;overflow:auto;"></ul>
+    </div>
     <!-- Ações rápidas no topo -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
       <button class="btn-secondary" style="flex:1;min-width:120px;" onclick="clAbrirModalColar()">📋 Colar dados</button>
@@ -2155,8 +2178,6 @@ Aproveite sua entrega e preserve esses momentos especiais com segurança.</texta
     <!-- AÇÕES FINAIS -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px;">
       <button class="btn-green" onclick="applyDadosCliente()" style="grid-column:1/-1;">✓ Aplicar na Proposta, Página Web e Contrato</button>
-      <button class="btn-secondary" onclick="clAplicarSoContrato()">→ Só no Contrato</button>
-      <button class="btn-secondary" onclick="clAplicarSoProposta()">→ Só na Proposta</button>
     </div>
   </div>
 </div>
@@ -3318,6 +3339,16 @@ function applyDadosCliente() {
   agSet('pp_dataCasamento', ev.evData || '');
   agSet('pp_localCasamento', local);
 
+  // Proposta: campos de cliente/evento (fonte única = Dados do Cliente)
+  agSet('pp_nomeCasalEvento', nomeEvento);
+  agSet('pp_localCerimonia', ev.evLocalCerimonia || '');
+  agSet('pp_localFesta', ev.evLocalFesta || '');
+  agSet('pp_clienteWhats', d.whatsapp || ev.evWhatsappNoiva || ev.evWhatsapp || '');
+  agSet('pp_clienteEmail', d.email || '');
+  // Cartões › orçamento
+  agSet('bz_orcamentoCliente', nomeEvento || d.nome); agSet('bz_orcamentoData', ev.evData || ''); agSet('bz_orcamentoEmail', d.email || ''); agSet('bz_orcamentoLocal', local);
+  try { localStorage.setItem('studiomelk_dados_cliente_atual', JSON.stringify(d)); } catch (e) {}
+
   // Página Web
   if (d.tipoEvento === 'casamento') {
     agSet('f_nome1', ev.evNoiva || ''); agSet('f_nome2', ev.evNoivo || '');
@@ -3342,7 +3373,7 @@ function applyDadosCliente() {
   if (typeof debouncedPropostaPreview === 'function') debouncedPropostaPreview();
   if (typeof debouncedPreview === 'function') debouncedPreview();
   closeDadosCliente();
-  showBizToast('✓ Dados aplicados na Proposta, Página Web e campos do Contrato.');
+  showBizToast('✓ Dados do cliente aplicados em Proposta, Página Web, Cartões e Contrato.');
 }
 
 function saveDadosClienteJSON() {
@@ -9645,9 +9676,9 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
 
 async function issuePublicSyncToken(scope, externalId) {
  const pairCode=localStorage.getItem('studio_melk_manager_pair_code') || '';
- if(!pairCode)return '';
+ if(!pairCode && !window.crmConnected)return '';
  const query='?issue=public-token&scope='+encodeURIComponent(scope)+(externalId?'&externalId='+encodeURIComponent(externalId):'');
- const response=await fetch('/api/sync'+query,{headers:{'x-studio-pair-code':pairCode}});
+ const response=await fetch('/api/sync'+query,{headers:pairCode?{'x-studio-pair-code':pairCode}:{}});
  const body=await response.json().catch(function(){return {};});
  if(!response.ok)throw new Error(body.error||'Não foi possível proteger a integração da página.');
  return body.token||'';
@@ -9816,6 +9847,86 @@ function saveSentProposal(d,url,format){
  const next=[item].concat(list.filter(function(entry){return entry.id!==item.id;})).slice(0,100);
  localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(next));
 }
+// ===== Conexão do aparelho com o Melk CRM (token em cookie HttpOnly no servidor do Gerador) =====
+const CRM_BASE_URL=(location.hostname==='localhost'&&localStorage.getItem('crm_base_url_dev'))||'https://melk-crm.vercel.app';
+window.crmConnected=false;
+function crmSetChip(state,text){['crmConnChip','crmTopChip'].forEach(function(id){const el=document.getElementById(id);if(el){el.dataset.state=state;el.textContent=id==='crmTopChip'?(state==='on'?'Melk CRM conectado':state==='off'?'Melk CRM desconectado':'Melk CRM…'):text;}});
+ const c=document.getElementById('crmConnectBtn'),d=document.getElementById('crmDisconnectBtn');if(c)c.textContent=state==='on'?'Reconectar':'Conectar ao Melk CRM';if(d)d.style.display=state==='on'?'':'none';}
+function crmMsg(t,err){const el=document.getElementById('crmConnStatus');if(el){el.textContent=t;el.style.color=err?'#b42318':'#157a3d';}}
+async function crmRefreshStatus(){
+ try{const r=await fetch('/api/pair',{cache:'no-store'});const b=await r.json().catch(function(){return {};});
+  window.crmConnected=!!(b.connected&&!b.error);
+  crmSetChip(window.crmConnected?'on':'off',window.crmConnected?('Conectado ao Melk CRM'+(b.device&&b.device.name?' · '+b.device.name:'')):(b.connected?'Conexão com problema':'Não conectado'));
+  if(b.error)crmMsg(b.error,true);
+  return b;
+ }catch(e){crmSetChip('off','Sem conexão');return {};}
+}
+function crmConnect(){
+ const state=Math.random().toString(36).slice(2)+Date.now().toString(36);
+ sessionStorage.setItem('crm_pair_state',state);
+ const name=(/Mobi|Android|iPhone/i.test(navigator.userAgent)?'Celular':'Computador')+' – '+new Date().toLocaleDateString('pt-BR');
+ location.href=CRM_BASE_URL+'/integracoes/gerador/conectar?return='+encodeURIComponent(location.origin+'/')+'&state='+encodeURIComponent(state)+'&name='+encodeURIComponent(name);
+}
+async function crmCompletePairing(){
+ const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+ const token=h.get('crm_pair');if(!token)return false;
+ const state=h.get('state')||'';const expected=sessionStorage.getItem('crm_pair_state')||'';
+ try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+ sessionStorage.removeItem('crm_pair_state');
+ if(!expected||state!==expected){crmMsg('Conexão cancelada: pedido não reconhecido. Clique em “Conectar ao Melk CRM” de novo.',true);return true;}
+ try{const r=await fetch('/api/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:token})});const b=await r.json().catch(function(){return {};});
+  if(!r.ok)throw new Error(b.error||'falha');
+  if(typeof showBizToast==='function')showBizToast('✓ Conectado ao Melk CRM');
+  crmMsg('✓ '+(b.message||'Conectado ao Melk CRM.'));
+ }catch(e){crmMsg('✗ Não foi possível conectar: '+e.message,true);}
+ await crmRefreshStatus();if(typeof retryCrmQueue==='function')retryCrmQueue();return true;
+}
+async function crmTestConnection(){crmMsg('Testando…');const b=await crmRefreshStatus();if(window.crmConnected)crmMsg('✓ '+(b.message||'Conectado ao Melk CRM.'));else if(!b.error)crmMsg('Este aparelho não está conectado. Clique em “Conectar ao Melk CRM”.',true);}
+async function crmDisconnect(){if(!confirm('Desconectar este aparelho do Melk CRM? (Para revogar de vez, use Configurações › Integrações no CRM.)'))return;await fetch('/api/pair',{method:'DELETE'});await crmRefreshStatus();crmMsg('Aparelho desconectado.');}
+window.addEventListener('load',function(){crmCompletePairing().then(function(){crmRefreshStatus();});});
+
+// ===== Buscar no Melk CRM e vínculo com lead/cliente =====
+window.crmPrefillClientId='';
+function crmLinkLoad(){try{const l=JSON.parse(localStorage.getItem('studio_melk_crm_link')||'null');if(l){window.crmPrefillLeadId=l.leadId||'';window.crmPrefillClientId=l.clientId||'';}crmLinkRender(l);}catch(e){}}
+function crmLinkSet(l){try{if(l)localStorage.setItem('studio_melk_crm_link',JSON.stringify(l));else localStorage.removeItem('studio_melk_crm_link');}catch(e){}window.crmPrefillLeadId=(l&&l.leadId)||'';window.crmPrefillClientId=(l&&l.clientId)||'';crmLinkRender(l);}
+function crmLinkRender(l){const el=document.getElementById('crmLinkInfo');if(!el)return;el.textContent='';if(!l||!(l.leadId||l.clientId))return;
+ el.append(document.createTextNode('🔗 Vinculado no CRM: '+(l.name||'')+' ('+(l.clientId?'cliente':'lead')+') '));
+ const b=document.createElement('button');b.type='button';b.textContent='desvincular';b.style.cssText='border:none;background:none;color:#b42318;text-decoration:underline;cursor:pointer;font-size:12px';b.onclick=function(){crmLinkSet(null);};el.append(b);}
+async function crmSearch(){
+ const q=(document.getElementById('crmSearchInput').value||'').trim();const ul=document.getElementById('crmSearchResults');ul.textContent='';
+ const info=function(t,err){const li=document.createElement('li');li.textContent=t;li.style.cssText='font-size:12px;padding:6px;color:'+(err?'#b42318':'#777');ul.append(li);};
+ if(q.length<2){info('Digite pelo menos 2 letras.');return;}
+ if(!window.crmConnected){info('Conecte este aparelho ao Melk CRM (Perfil da Empresa › Conectar ao Melk CRM).',true);return;}
+ info('Buscando…');
+ try{const r=await fetch('/api/sync?q='+encodeURIComponent(q),{cache:'no-store'});const b=await r.json().catch(function(){return {};});ul.textContent='';
+  if(!r.ok)throw new Error(b.error||'falha na busca');
+  const list=b.results||[];if(!list.length){info('Nada encontrado no CRM.');return;}
+  list.forEach(function(it){const li=document.createElement('li');const bt=document.createElement('button');bt.type='button';bt.setAttribute('role','option');
+   bt.style.cssText='width:100%;text-align:left;padding:8px 10px;border:1px solid #e4ded3;background:#fff;border-radius:8px;margin-bottom:6px;cursor:pointer;font:inherit';
+   const t=document.createElement('strong');t.textContent=it.name+(it.spouse?' & '+it.spouse:'');const sub=document.createElement('div');sub.style.cssText='font-size:11px;color:#777';
+   sub.textContent=[it.kind==='client'?'Cliente':'Lead',it.tipo,it.date?it.date.split('-').reverse().join('/'):'',it.local,it.phone].filter(Boolean).join(' · ');
+   bt.append(t,sub);bt.onclick=function(){crmUseResult(it);};li.append(bt);ul.append(li);});
+ }catch(e){ul.textContent='';info('✗ '+e.message,true);}
+}
+function crmTipoToCl(t){t=(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(t.includes('casa'))return 'casamento';if(t.includes('anivers'))return 'aniversario';if(t.includes('corpor')||t.includes('empresa'))return 'corporativo';if(t.includes('ensaio'))return 'ensaio';return '';}
+function crmFillClientModel(it){
+ const d=getDadosClienteData();const tipo=crmTipoToCl(it.tipo)||d.tipoEvento||'casamento';
+ const ev=Object.assign({},d.evento||{});
+ if(tipo==='casamento'){ev.evNoiva=ev.evNoiva||it.name||'';ev.evNoivo=ev.evNoivo||it.spouse||'';ev.evWhatsappNoiva=ev.evWhatsappNoiva||it.phone||'';}
+ else if(tipo==='corporativo'){ev.evEmpresa=ev.evEmpresa||it.name||'';ev.evWhatsapp=ev.evWhatsapp||it.phone||'';}
+ else {ev.evDonoFesta=ev.evDonoFesta||it.name||'';ev.evWhatsapp=ev.evWhatsapp||it.phone||'';}
+ if(it.date)ev.evData=it.date; if(it.cerimonia)ev.evLocalCerimonia=it.cerimonia; if(it.festa||it.local)ev.evLocalFesta=it.festa||it.local;
+ applyDadosClienteFields({nome:it.name||d.nome,cpf:d.cpf||it.cpf||'',rg:d.rg,whatsapp:it.phone||d.whatsapp,email:it.email||d.email,cep:d.cep,endereco:d.endereco,tipoEvento:tipo,evento:ev});
+ const sel=document.getElementById('pp_tipoProposta');const map={casamento:'casamento',aniversario:'aniversario',ensaio:'ensaio',corporativo:'corporativo'};if(sel&&map[tipo]&&sel.value!==map[tipo]){sel.value=map[tipo];try{setPropostaTipo(map[tipo]);}catch(e){}}
+}
+function crmUseResult(it){
+ crmFillClientModel(it);
+ crmLinkSet({leadId:it.leadId||'',clientId:it.clientId||'',name:it.name});
+ document.getElementById('crmSearchResults').textContent='';
+ if(typeof showBizToast==='function')showBizToast('✓ '+it.name+' carregado do CRM. Revise e clique em “Aplicar”.');
+}
+window.addEventListener('load',function(){setTimeout(crmLinkLoad,200);});
+
 // Pré-preenchimento vindo do Melk CRM: ?nome=&noiva=&noivo=&telefone=&email=&data=&local=&tipo=&leadId= (query ou #fragmento)
 window.crmPrefillLeadId = '';
 function applyCrmPrefill(){
@@ -9836,6 +9947,8 @@ function applyCrmPrefill(){
  set('pp_clienteWhats',get('telefone')); set('pp_clienteEmail',get('email'));
  set('cl_nome',nome); set('cl_whatsapp',get('telefone')); set('cl_email',get('email'));
  window.crmPrefillLeadId=get('leadId').slice(0,60);
+ try{crmFillClientModel({name:get('nome')||get('noiva'),spouse:get('noivo_noiva')||get('noivo'),phone:get('telefone'),email:get('email'),date:data,local:get('local'),tipo:get('tipo')});applyDadosCliente();}catch(e){}
+ if(window.crmPrefillLeadId) crmLinkSet({leadId:window.crmPrefillLeadId,clientId:'',name:nome});
  if(location.hash) try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
  if(typeof debouncedPropostaPreview==='function') try{debouncedPropostaPreview();}catch(e){}
  const tab=document.querySelector('[data-tab="proposta"]'); if(tab) try{tab.click();}catch(e){}
@@ -9847,10 +9960,12 @@ function crmRetryList(){try{return JSON.parse(localStorage.getItem(CRM_RETRY_KEY
 function crmRetrySave(list){try{localStorage.setItem(CRM_RETRY_KEY,JSON.stringify(list.slice(-50)));}catch(e){}}
 async function postToCrmOnce(payload){
  if(window.crmPrefillLeadId && !payload.leadId) payload.leadId=window.crmPrefillLeadId;
+ if(window.crmPrefillClientId && !payload.clientId) payload.clientId=window.crmPrefillClientId;
  const pairCode=localStorage.getItem('studio_melk_manager_pair_code')||'';
- if(!pairCode) return {ok:false,retry:false,error:'conecte o Gerador ao CRM (código de conexão) nas opções'};
+ if(!pairCode && !window.crmConnected) return {ok:false,retry:true,error:'este aparelho não está conectado ao Melk CRM (Perfil da Empresa › Conectar ao Melk CRM)'};
  try{
-  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':pairCode},body:JSON.stringify(payload)});
+  const headers={'content-type':'application/json'}; if(pairCode) headers['x-studio-pair-code']=pairCode;
+  const response=await fetch('/api/sync',{method:'POST',headers:headers,body:JSON.stringify(payload)});
   const body=await response.json().catch(function(){return {};});
   if(response.ok) return {ok:true,body:body};
   return {ok:false,retry:response.status>=500||response.status===429,error:body.error||('erro '+response.status)};
@@ -9866,7 +9981,7 @@ let crmRetryRunning=false;
 async function retryCrmQueue(){
  if(crmRetryRunning)return; crmRetryRunning=true;
  try{
-  const list=crmRetryList(); if(!list.length)return;
+  const list=crmRetryList(); if(!list.length)return; if(!window.crmConnected && !localStorage.getItem('studio_melk_manager_pair_code'))return;
   const left=[]; let sent=0;
   for(const item of list){const r=await postToCrmOnce(item.payload); if(r.ok) sent++; else if(r.retry) left.push(Object.assign(item,{error:r.error})); }
   crmRetrySave(left);
@@ -10299,8 +10414,6 @@ function studioManagerPayload(type) {
   };
 }
 async function sendToStudioManager(type) {
-  const code = getStudioManagerPairCode();
-  if (!code) { setStudioManagerStatus('Digite e salve o código de conexão primeiro.', true); return; }
   const payload = studioManagerPayload(type);
   if (!payload.client.name || payload.client.name === 'Cliente') { setStudioManagerStatus('Preencha os Dados do Cliente antes de enviar.', true); return; }
   setStudioManagerStatus('Enviando para o CRM…');
