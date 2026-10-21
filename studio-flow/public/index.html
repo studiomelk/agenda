@@ -9396,6 +9396,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  'const STUDIO_SYNC_URL_PP = ' + JSON.stringify(syncUrl || '') + ';' +
  'const STUDIO_PUBLIC_TOKEN_PP = ' + JSON.stringify(publicToken || '') + ';' +
  'const STUDIO_EXTERNAL_ID_PP = ' + JSON.stringify(integrationId || '') + ';' +
+ 'const STUDIO_LEAD_ID_PP = ' + JSON.stringify(window.crmPrefillLeadId || '') + ';' +
  'let estado = { selFoto: null, selFilme: null, selAddons: [], step: 1, totalManual: null, paymentCount: 1, paymentMethod: "Pix", paymentDates: [], paymentValues: [] };' +
  'const contratante = { dataCasamento: "' + (dataCasamento || '').replace(/"/g, '\\"') + '", localCerimonia: ' + JSON.stringify(localCerimonia || localCasamento || '') + ', localFesta: ' + JSON.stringify(localFesta || '') + ', contratanteWhats: ' + JSON.stringify(clienteWhats || '') + ', contratanteEmail: ' + JSON.stringify(clienteEmail || '') + ' };' +
  '' +
@@ -9623,7 +9624,7 @@ function getPropostaFunilScript(waNumero, emailNotificacao, estudioNome, camposE
  ' let syncMessage = "";' +
  ' try {' +
  '  const serviceParts = [pacoteFotoNome !== "-" ? "Fotografia — " + pacoteFotoNome : "", pacoteFilmeNome !== "-" ? "Filmagem — " + pacoteFilmeNome : "", addonsNomes !== "-" ? "Adicionais — " + addonsNomes : ""].filter(Boolean);' +
- '  const crmPayload = { type:"contract", externalId:STUDIO_EXTERNAL_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, contract:{url:location.href,signed:false}, source:{channel:"resposta-link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Contrato originado pela resposta da proposta"} };' +
+ '  const crmPayload = { type:"contract", externalId:STUDIO_EXTERNAL_ID_PP, leadId:STUDIO_LEAD_ID_PP, client:{name:contratante.contratanteNome||titNome,email:contratante.contratanteEmail||"",whatsapp:contratante.contratanteWhats||""}, event:{title:titNome,date:contratante.dataCasamento||"",time:contratante.horarioCerimonia||"",place:contratante.localFesta||contratante.localCerimonia||""}, commercial:{service:serviceParts.join(" + "),total:total,installments:parcelasObs}, contract:{url:location.href,signed:false}, source:{channel:"resposta-link-publico",url:location.href,format:location.protocol === "file:" ? "html-baixado" : "link-publicado",title:"Contrato originado pela resposta da proposta"} };' +
  '  const syncResponse = await fetch(STUDIO_SYNC_URL_PP,{method:"POST",headers:{"content-type":"application/json","x-studio-public-token":STUDIO_PUBLIC_TOKEN_PP},body:JSON.stringify(crmPayload)});' +
  '  const syncBody = await syncResponse.json().catch(function(){return {};});' +
  '  if(!syncResponse.ok) throw new Error(syncBody.error||"O CRM recusou o envio.");' +
@@ -9815,19 +9816,71 @@ function saveSentProposal(d,url,format){
  const next=[item].concat(list.filter(function(entry){return entry.id!==item.id;})).slice(0,100);
  localStorage.setItem(SENT_PROPOSALS_KEY,JSON.stringify(next));
 }
+// Pré-preenchimento vindo do Melk CRM: ?nome=&noiva=&noivo=&telefone=&email=&data=&local=&tipo=&leadId= (query ou #fragmento)
+window.crmPrefillLeadId = '';
+function applyCrmPrefill(){
+ const q=new URLSearchParams(location.search); const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+ const get=function(k){return (h.get(k)||q.get(k)||'').trim();};
+ const keys=['nome','noiva','noivo','telefone','email','data','local','tipo','leadId'];
+ if(!keys.some(function(k){return get(k);})) return;
+ const set=function(id,v){const el=document.getElementById(id); if(el&&v){el.value=v; el.dispatchEvent(new Event('input',{bubbles:true}));}};
+ let data=get('data'); const m=data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if(m) data=m[3]+'-'+m[2]+'-'+m[1];
+ const tipo=get('tipo').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const tipoMap={casamento:'casamento',aniversario:'aniversario',ensaio:'ensaio',corporativo:'corporativo',empresa:'corporativo',evento:'geral',geral:'geral'};
+ const casal=[get('noiva'),get('noivo')].filter(Boolean).join(' & ');
+ const nome=get('nome')||casal;
+ const sel=document.getElementById('pp_tipoProposta'); const t=tipoMap[tipo];
+ if(sel&&t){sel.value=t; if(typeof setPropostaTipo==='function') try{setPropostaTipo(t);}catch(e){}}
+ set('pp_nomeCasalEvento',casal||nome); set('pp_nomeCasal',casal||nome);
+ set('pp_dataCasamento',data); set('pp_localFesta',get('local')); set('pp_localCasamento',get('local'));
+ set('pp_clienteWhats',get('telefone')); set('pp_clienteEmail',get('email'));
+ set('cl_nome',nome); set('cl_whatsapp',get('telefone')); set('cl_email',get('email'));
+ window.crmPrefillLeadId=get('leadId').slice(0,60);
+ if(typeof debouncedPropostaPreview==='function') try{debouncedPropostaPreview();}catch(e){}
+ const tab=document.querySelector('[data-tab="proposta"]'); if(tab) try{tab.click();}catch(e){}
+ if(typeof showBizToast==='function') showBizToast('✓ Dados do cliente carregados do Melk CRM'+(window.crmPrefillLeadId?' (vinculado ao lead)':''));
+}
+window.addEventListener('load',function(){setTimeout(applyCrmPrefill,400);});
+const CRM_RETRY_KEY='studio_melk_crm_retry_v1';
+function crmRetryList(){try{return JSON.parse(localStorage.getItem(CRM_RETRY_KEY)||'[]');}catch(e){return [];}}
+function crmRetrySave(list){try{localStorage.setItem(CRM_RETRY_KEY,JSON.stringify(list.slice(-50)));}catch(e){}}
+async function postToCrmOnce(payload){
+ if(window.crmPrefillLeadId && !payload.leadId) payload.leadId=window.crmPrefillLeadId;
+ const pairCode=localStorage.getItem('studio_melk_manager_pair_code')||'';
+ if(!pairCode) return {ok:false,retry:false,error:'conecte o Gerador ao CRM (código de conexão) nas opções'};
+ try{
+  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':pairCode},body:JSON.stringify(payload)});
+  const body=await response.json().catch(function(){return {};});
+  if(response.ok) return {ok:true,body:body};
+  return {ok:false,retry:response.status>=500||response.status===429,error:body.error||('erro '+response.status)};
+ }catch(e){return {ok:false,retry:true,error:'sem conexão com a internet ou com o servidor'};}
+}
+async function postToCrm(payload){
+ const r=await postToCrmOnce(payload);
+ if(!r.ok && r.retry){const list=crmRetryList().filter(function(x){return x.payload.externalId!==payload.externalId;});list.push({payload:payload,at:new Date().toISOString(),error:r.error});crmRetrySave(list);r.queued=true;}
+ if(r.ok) retryCrmQueue();
+ return r;
+}
+let crmRetryRunning=false;
+async function retryCrmQueue(){
+ if(crmRetryRunning)return; crmRetryRunning=true;
+ try{
+  const list=crmRetryList(); if(!list.length)return;
+  const left=[]; let sent=0;
+  for(const item of list){const r=await postToCrmOnce(item.payload); if(r.ok) sent++; else if(r.retry) left.push(Object.assign(item,{error:r.error})); }
+  crmRetrySave(left);
+  if(sent&&typeof showBizToast==='function')showBizToast('✓ '+sent+' envio(s) pendente(s) entraram no Melk CRM.');
+ } finally { crmRetryRunning=false; }
+}
+window.addEventListener('load',function(){setTimeout(retryCrmQueue,3000);});
+window.addEventListener('online',retryCrmQueue);
 async function registerGeneratedProposal(d,url,format){
  saveSentProposal(d,url,format);
  const total=flowNumber((document.getElementById('pp_pmt_valor')||{}).value);
  const service=[d.ativoFoto?'Fotografia':'',d.ativoFilme?'Filmagem':'',d.ativoAddons?'Adicionais':''].filter(Boolean).join(' + ')||d.heroTitulo||'Proposta Studio Melk';
  const payload={type:'proposal',externalId:d.integrationId,client:{name:proposalOwner(d),email:d.clienteEmail||'',whatsapp:d.clienteWhats||''},event:{title:proposalOwner(d),date:d.dataCasamento||'',time:'',place:d.localFesta||d.localCerimonia||''},commercial:{service:service,total:total,installments:(document.getElementById('pp_pmt_pagamento')||{}).value||''},source:{channel:'gerador',url:url||'',format:format,title:'Proposta gerada no Studio Melk Flow'}};
- try{
-  const pairCode=localStorage.getItem('studio_melk_manager_pair_code') || '';
-  if(!pairCode) throw new Error('Conecte o Gerador ao Flow antes de registrar a proposta.');
-  const response=await fetch('/api/sync',{method:'POST',headers:{'content-type':'application/json','x-studio-pair-code':pairCode},body:JSON.stringify(payload)});
-  const body=await response.json().catch(function(){return {};});
-  if(!response.ok)throw new Error(body.error||'Não foi possível registrar no funil.');
-  if(typeof showBizToast==='function')showBizToast('✓ Proposta registrada no funil.');
- }catch(error){if(typeof showBizToast==='function')showBizToast('Link criado; revise a conexão do CRM.');}
+ const result=await postToCrm(payload);
+ if(typeof showBizToast==='function')showBizToast(result.ok?'✓ Proposta registrada no Melk CRM.':'⚠ Link criado, mas NÃO entrou no CRM: '+result.error+(result.queued?' (salvo para reenviar automaticamente)':''));
 }
 function toggleSentProposalFeatured(id){
  const list=sentProposals();const item=list.find(function(entry){return entry.id===id;});if(!item)return;
@@ -10210,7 +10263,7 @@ async function testStudioManagerConnection() {
     const response = await fetch('/api/sync', { method: 'GET', headers: { 'x-studio-pair-code': code } });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'Não foi possível conectar.');
-    setStudioManagerStatus('Conectado ao Studio Melk Manager.');
+    setStudioManagerStatus('✓ ' + (body.message || 'Conectado ao Melk CRM.'));
   } catch (error) {
     setStudioManagerStatus(error.message || 'Falha ao conectar.', true);
   }
@@ -10250,14 +10303,12 @@ async function sendToStudioManager(type) {
   const payload = studioManagerPayload(type);
   if (!payload.client.name || payload.client.name === 'Cliente') { setStudioManagerStatus('Preencha os Dados do Cliente antes de enviar.', true); return; }
   setStudioManagerStatus('Enviando para o CRM…');
-  try {
-    const response = await fetch('/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', 'x-studio-pair-code': code }, body: JSON.stringify(payload) });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || 'O CRM recusou o envio.');
-    setStudioManagerStatus(body.message || (type === 'contract' ? 'Contrato enviado: cliente, evento e financeiro foram criados no CRM.' : 'Proposta enviada ao CRM.'));
-    if (typeof showBizToast === 'function') showBizToast('✓ Enviado ao Studio Melk Manager.');
-  } catch (error) {
-    setStudioManagerStatus(error.message || 'Falha ao enviar.', true);
+  const result = await postToCrm(payload);
+  if (result.ok) {
+    setStudioManagerStatus('✓ ' + ((result.body && result.body.message) || (type === 'contract' ? 'Contrato enviado ao Melk CRM.' : 'Proposta enviada ao Melk CRM.')));
+    if (typeof showBizToast === 'function') showBizToast('✓ Enviado ao Melk CRM.');
+  } else {
+    setStudioManagerStatus('✗ Não entrou no CRM: ' + result.error + (result.queued ? ' — salvo para reenviar automaticamente.' : ''), true);
   }
 }
 document.addEventListener('DOMContentLoaded', function() {

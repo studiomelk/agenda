@@ -45,7 +45,7 @@ module.exports = async (request, response) => {
 
   const expectedPairCode = process.env.STUDIO_PAIR_CODE;
   const pairCode = request.headers["x-studio-pair-code"];
-  const managerUrl = process.env.MANAGER_CANONICAL_SYNC_URL || "https://studio-melk.vercel.app/api/integrations/gerador";
+  const managerUrl = process.env.MANAGER_CANONICAL_SYNC_URL || process.env.MANAGER_SYNC_URL || "https://melk-crm.vercel.app/api/integrations/gerador";
   const secret = process.env.GERADOR_SYNC_SECRET;
   if (!managerUrl || !secret) {
     return response.status(503).json({ error: "A conexão ainda não foi configurada no servidor." });
@@ -69,17 +69,23 @@ module.exports = async (request, response) => {
   }
 
   try {
-    const headers = request.method === "GET"
-      ? { "x-studio-pair-code": pairCode }
-      : { "content-type": "application/json", authorization: `Bearer ${secret}` };
-    const upstream = await fetch(managerUrl, {
-      method: request.method,
-      headers,
-      body: request.method === "POST" ? JSON.stringify(request.body) : undefined,
-    });
-    const body = await upstream.json().catch(() => ({ error: "Resposta inválida do CRM." }));
-    return response.status(upstream.status).json(body);
-  } catch {
-    return response.status(502).json({ error: "Não foi possível falar com o CRM agora." });
+    const raw = request.method === "POST" ? JSON.stringify(request.body || {}) : "";
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = crypto.createHmac("sha256", secret).update(`${timestamp}.${raw}`).digest("hex");
+    const headers = { "x-melk-timestamp": timestamp, "x-melk-signature": signature };
+    if (request.method === "POST") headers["content-type"] = "application/json";
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const upstream = await fetch(managerUrl, { method: request.method, headers, body: request.method === "POST" ? raw : undefined, signal: controller.signal }).finally(() => clearTimeout(timer));
+    const body = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      const reason = body.error || `HTTP ${upstream.status}`;
+      const prefix = upstream.status === 401 ? "O CRM recusou a assinatura (segredo diferente entre os apps)" : upstream.status >= 500 ? "O CRM está fora do ar ou com erro" : "O CRM recusou os dados";
+      return response.status(upstream.status === 401 ? 502 : upstream.status).json({ error: `${prefix}: ${reason}` });
+    }
+    return response.status(200).json(body);
+  } catch (error) {
+    const timeout = error && error.name === "AbortError";
+    return response.status(504).json({ error: timeout ? "O CRM demorou para responder. Tente novamente em instantes." : "Não foi possível falar com o CRM agora. Tente novamente em instantes." });
   }
 };
