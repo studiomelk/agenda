@@ -9821,13 +9821,13 @@ window.crmPrefillLeadId = '';
 function applyCrmPrefill(){
  const q=new URLSearchParams(location.search); const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
  const get=function(k){return (h.get(k)||q.get(k)||'').trim();};
- const keys=['nome','noiva','noivo','telefone','email','data','local','tipo','leadId'];
+ const keys=['nome','noiva','noivo','noivo_noiva','telefone','email','data','local','tipo','leadId'];
  if(!keys.some(function(k){return get(k);})) return;
  const set=function(id,v){const el=document.getElementById(id); if(el&&v){el.value=v; el.dispatchEvent(new Event('input',{bubbles:true}));}};
  let data=get('data'); const m=data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if(m) data=m[3]+'-'+m[2]+'-'+m[1];
  const tipo=get('tipo').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
  const tipoMap={casamento:'casamento',aniversario:'aniversario',ensaio:'ensaio',corporativo:'corporativo',empresa:'corporativo',evento:'geral',geral:'geral'};
- const casal=[get('noiva'),get('noivo')].filter(Boolean).join(' & ');
+ const casal=(get('noiva')||get('noivo'))?[get('noiva'),get('noivo')].filter(Boolean).join(' & '):(get('noivo_noiva')?[get('nome'),get('noivo_noiva')].filter(Boolean).join(' & '):'');
  const nome=get('nome')||casal;
  const sel=document.getElementById('pp_tipoProposta'); const t=tipoMap[tipo];
  if(sel&&t){sel.value=t; if(typeof setPropostaTipo==='function') try{setPropostaTipo(t);}catch(e){}}
@@ -9836,6 +9836,7 @@ function applyCrmPrefill(){
  set('pp_clienteWhats',get('telefone')); set('pp_clienteEmail',get('email'));
  set('cl_nome',nome); set('cl_whatsapp',get('telefone')); set('cl_email',get('email'));
  window.crmPrefillLeadId=get('leadId').slice(0,60);
+ if(location.hash) try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
  if(typeof debouncedPropostaPreview==='function') try{debouncedPropostaPreview();}catch(e){}
  const tab=document.querySelector('[data-tab="proposta"]'); if(tab) try{tab.click();}catch(e){}
  if(typeof showBizToast==='function') showBizToast('✓ Dados do cliente carregados do Melk CRM'+(window.crmPrefillLeadId?' (vinculado ao lead)':''));
